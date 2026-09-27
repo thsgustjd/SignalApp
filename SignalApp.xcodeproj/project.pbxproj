@@ -6,6 +6,17 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2818626F3066F8FA00E63D87 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 2818626E3066F8FA00E63D87 /* Supabase */; };
+		281862A53067089F00E63D87 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 281862A43067089F00E63D87 /* WidgetKit.framework */; };
+		281862A73067089F00E63D87 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 281862A63067089F00E63D87 /* SwiftUI.framework */; };
+		281862B4306708A000E63D87 /* SignalWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 281862A23067089F00E63D87 /* SignalWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		286A6B2E3068901F00409128 /* NotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 286A6B273068901F00409128 /* NotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		286A6C1130689A9E00409128 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 286A6C1030689A9E00409128 /* UserNotifications.framework */; };
+		286A6C1330689A9E00409128 /* UserNotificationsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 286A6C1230689A9E00409128 /* UserNotificationsUI.framework */; };
+		286A6C1D30689A9F00409128 /* NotificationContentUI.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 286A6C0F30689A9E00409128 /* NotificationContentUI.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		281862513066F86B00E63D87 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,17 +32,96 @@
 			remoteGlobalIDString = 2818623E3066F86A00E63D87;
 			remoteInfo = SignalApp;
 		};
+		281862B2306708A000E63D87 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 281862373066F86A00E63D87 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 281862A13067089F00E63D87;
+			remoteInfo = SignalWidgetExtension;
+		};
+		286A6B2C3068901F00409128 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 281862373066F86A00E63D87 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 286A6B263068901F00409128;
+			remoteInfo = NotificationService;
+		};
+		286A6C1B30689A9F00409128 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 281862373066F86A00E63D87 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 286A6C0E30689A9E00409128;
+			remoteInfo = NotificationContentUI;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		281862B9306708A000E63D87 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				281862B4306708A000E63D87 /* SignalWidgetExtension.appex in Embed Foundation Extensions */,
+				286A6C1D30689A9F00409128 /* NotificationContentUI.appex in Embed Foundation Extensions */,
+				286A6B2E3068901F00409128 /* NotificationService.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2818623F3066F86A00E63D87 /* SignalApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SignalApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		281862503066F86B00E63D87 /* SignalAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SignalAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2818625A3066F86B00E63D87 /* SignalAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SignalAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		281862A23067089F00E63D87 /* SignalWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SignalWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		281862A43067089F00E63D87 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		281862A63067089F00E63D87 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		281862BA30670BF200E63D87 /* SignalWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SignalWidgetExtension.entitlements; sourceTree = "<group>"; };
+		286A6B273068901F00409128 /* NotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		286A6C0F30689A9E00409128 /* NotificationContentUI.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationContentUI.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		286A6C1030689A9E00409128 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
+		286A6C1230689A9E00409128 /* UserNotificationsUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotificationsUI.framework; path = System/Library/Frameworks/UserNotificationsUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		281862B5306708A000E63D87 /* Exceptions for "SignalWidget" folder in "SignalWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 281862A13067089F00E63D87 /* SignalWidgetExtension */;
+		};
+		286A6B2230688B9500409128 /* Exceptions for "SignalApp" folder in "SignalApp" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2818623E3066F86A00E63D87 /* SignalApp */;
+		};
+		286A6B323068901F00409128 /* Exceptions for "NotificationService" folder in "NotificationService" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 286A6B263068901F00409128 /* NotificationService */;
+		};
+		286A6C2130689A9F00409128 /* Exceptions for "NotificationContentUI" folder in "NotificationContentUI" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 286A6C0E30689A9E00409128 /* NotificationContentUI */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		281862413066F86A00E63D87 /* SignalApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				286A6B2230688B9500409128 /* Exceptions for "SignalApp" folder in "SignalApp" target */,
+			);
 			path = SignalApp;
 			sourceTree = "<group>";
 		};
@@ -45,6 +135,35 @@
 			path = SignalAppUITests;
 			sourceTree = "<group>";
 		};
+		281862A83067089F00E63D87 /* SignalWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				281862B5306708A000E63D87 /* Exceptions for "SignalWidget" folder in "SignalWidgetExtension" target */,
+			);
+			path = SignalWidget;
+			sourceTree = "<group>";
+		};
+		281862BB30670C1000E63D87 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		286A6B283068901F00409128 /* NotificationService */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				286A6B323068901F00409128 /* Exceptions for "NotificationService" folder in "NotificationService" target */,
+			);
+			path = NotificationService;
+			sourceTree = "<group>";
+		};
+		286A6C1430689A9E00409128 /* NotificationContentUI */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				286A6C2130689A9F00409128 /* Exceptions for "NotificationContentUI" folder in "NotificationContentUI" target */,
+			);
+			path = NotificationContentUI;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -52,6 +171,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2818626F3066F8FA00E63D87 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -69,15 +189,46 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2818629F3067089F00E63D87 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				281862A73067089F00E63D87 /* SwiftUI.framework in Frameworks */,
+				281862A53067089F00E63D87 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		286A6B243068901F00409128 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		286A6C0C30689A9E00409128 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				286A6C1330689A9E00409128 /* UserNotificationsUI.framework in Frameworks */,
+				286A6C1130689A9E00409128 /* UserNotifications.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		281862363066F86A00E63D87 = {
 			isa = PBXGroup;
 			children = (
+				281862BA30670BF200E63D87 /* SignalWidgetExtension.entitlements */,
 				281862413066F86A00E63D87 /* SignalApp */,
 				281862533066F86B00E63D87 /* SignalAppTests */,
 				2818625D3066F86B00E63D87 /* SignalAppUITests */,
+				281862A83067089F00E63D87 /* SignalWidget */,
+				281862BB30670C1000E63D87 /* Shared */,
+				286A6B283068901F00409128 /* NotificationService */,
+				286A6C1430689A9E00409128 /* NotificationContentUI */,
+				281862A33067089F00E63D87 /* Frameworks */,
 				281862403066F86A00E63D87 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,8 +239,22 @@
 				2818623F3066F86A00E63D87 /* SignalApp.app */,
 				281862503066F86B00E63D87 /* SignalAppTests.xctest */,
 				2818625A3066F86B00E63D87 /* SignalAppUITests.xctest */,
+				281862A23067089F00E63D87 /* SignalWidgetExtension.appex */,
+				286A6B273068901F00409128 /* NotificationService.appex */,
+				286A6C0F30689A9E00409128 /* NotificationContentUI.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		281862A33067089F00E63D87 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				281862A43067089F00E63D87 /* WidgetKit.framework */,
+				281862A63067089F00E63D87 /* SwiftUI.framework */,
+				286A6C1030689A9E00409128 /* UserNotifications.framework */,
+				286A6C1230689A9E00409128 /* UserNotificationsUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -102,16 +267,22 @@
 				2818623B3066F86A00E63D87 /* Sources */,
 				2818623C3066F86A00E63D87 /* Frameworks */,
 				2818623D3066F86A00E63D87 /* Resources */,
+				281862B9306708A000E63D87 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				281862B3306708A000E63D87 /* PBXTargetDependency */,
+				286A6B2D3068901F00409128 /* PBXTargetDependency */,
+				286A6C1C30689A9F00409128 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				281862413066F86A00E63D87 /* SignalApp */,
+				281862BB30670C1000E63D87 /* Shared */,
 			);
 			name = SignalApp;
 			packageProductDependencies = (
+				2818626E3066F8FA00E63D87 /* Supabase */,
 			);
 			productName = SignalApp;
 			productReference = 2818623F3066F86A00E63D87 /* SignalApp.app */;
@@ -163,6 +334,73 @@
 			productReference = 2818625A3066F86B00E63D87 /* SignalAppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		281862A13067089F00E63D87 /* SignalWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 281862B6306708A000E63D87 /* Build configuration list for PBXNativeTarget "SignalWidgetExtension" */;
+			buildPhases = (
+				2818629E3067089F00E63D87 /* Sources */,
+				2818629F3067089F00E63D87 /* Frameworks */,
+				281862A03067089F00E63D87 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				281862A83067089F00E63D87 /* SignalWidget */,
+				281862BB30670C1000E63D87 /* Shared */,
+			);
+			name = SignalWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = SignalWidgetExtension;
+			productReference = 281862A23067089F00E63D87 /* SignalWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		286A6B263068901F00409128 /* NotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 286A6B2F3068901F00409128 /* Build configuration list for PBXNativeTarget "NotificationService" */;
+			buildPhases = (
+				286A6B233068901F00409128 /* Sources */,
+				286A6B243068901F00409128 /* Frameworks */,
+				286A6B253068901F00409128 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				286A6B283068901F00409128 /* NotificationService */,
+			);
+			name = NotificationService;
+			packageProductDependencies = (
+			);
+			productName = NotificationService;
+			productReference = 286A6B273068901F00409128 /* NotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		286A6C0E30689A9E00409128 /* NotificationContentUI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 286A6C2030689A9F00409128 /* Build configuration list for PBXNativeTarget "NotificationContentUI" */;
+			buildPhases = (
+				286A6C0B30689A9E00409128 /* Sources */,
+				286A6C0C30689A9E00409128 /* Frameworks */,
+				286A6C0D30689A9E00409128 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				286A6C1430689A9E00409128 /* NotificationContentUI */,
+			);
+			name = NotificationContentUI;
+			packageProductDependencies = (
+			);
+			productName = NotificationContentUI;
+			productReference = 286A6C0F30689A9E00409128 /* NotificationContentUI.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -184,6 +422,15 @@
 						CreatedOnToolsVersion = 16.0;
 						TestTargetID = 2818623E3066F86A00E63D87;
 					};
+					281862A13067089F00E63D87 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					286A6B263068901F00409128 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					286A6C0E30689A9E00409128 = {
+						CreatedOnToolsVersion = 16.0;
+					};
 				};
 			};
 			buildConfigurationList = 2818623A3066F86A00E63D87 /* Build configuration list for PBXProject "SignalApp" */;
@@ -195,6 +442,9 @@
 			);
 			mainGroup = 281862363066F86A00E63D87;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2818626D3066F8FA00E63D87 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 281862403066F86A00E63D87 /* Products */;
 			projectDirPath = "";
@@ -203,6 +453,9 @@
 				2818623E3066F86A00E63D87 /* SignalApp */,
 				2818624F3066F86B00E63D87 /* SignalAppTests */,
 				281862593066F86B00E63D87 /* SignalAppUITests */,
+				281862A13067089F00E63D87 /* SignalWidgetExtension */,
+				286A6B263068901F00409128 /* NotificationService */,
+				286A6C0E30689A9E00409128 /* NotificationContentUI */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +476,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		281862583066F86B00E63D87 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		281862A03067089F00E63D87 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		286A6B253068901F00409128 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		286A6C0D30689A9E00409128 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,6 +527,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2818629E3067089F00E63D87 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		286A6B233068901F00409128 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		286A6C0B30689A9E00409128 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -265,6 +560,21 @@
 			isa = PBXTargetDependency;
 			target = 2818623E3066F86A00E63D87 /* SignalApp */;
 			targetProxy = 2818625B3066F86B00E63D87 /* PBXContainerItemProxy */;
+		};
+		281862B3306708A000E63D87 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 281862A13067089F00E63D87 /* SignalWidgetExtension */;
+			targetProxy = 281862B2306708A000E63D87 /* PBXContainerItemProxy */;
+		};
+		286A6B2D3068901F00409128 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 286A6B263068901F00409128 /* NotificationService */;
+			targetProxy = 286A6B2C3068901F00409128 /* PBXContainerItemProxy */;
+		};
+		286A6C1C30689A9F00409128 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 286A6C0E30689A9E00409128 /* NotificationContentUI */;
+			targetProxy = 286A6C1B30689A9F00409128 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -388,12 +698,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = SignalApp/SignalApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"SignalApp/Preview Content\"";
+				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SignalApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
+				INFOPLIST_KEY_NSCameraUsageDescription = "상대방에게 보낼 사진을 촬영하기 위해 카메라 접근이 필요합니다.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "채팅 사진을 앨범에 저장할 때 사용합니다.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "시뮬레이터 등에서 사진을 선택해 전송할 때 사용합니다.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -425,12 +743,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = SignalApp/SignalApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"SignalApp/Preview Content\"";
+				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SignalApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
+				INFOPLIST_KEY_NSCameraUsageDescription = "상대방에게 보낼 사진을 촬영하기 위해 카메라 접근이 필요합니다.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "채팅 사진을 앨범에 저장할 때 사용합니다.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "시뮬레이터 등에서 사진을 선택해 전송할 때 사용합니다.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -543,6 +869,193 @@
 			};
 			name = Release;
 		};
+		281862B7306708A000E63D87 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = SignalWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SignalWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyunseong.SignalApp.SignalWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		281862B8306708A000E63D87 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = SignalWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SignalWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyunseong.SignalApp.SignalWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		286A6B303068901F00409128 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyunseong.SignalApp.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		286A6B313068901F00409128 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyunseong.SignalApp.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		286A6C1E30689A9F00409128 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = NotificationContentUI/NotificationContentUI.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationContentUI/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyunseong.SignalApp.NotificationContentUI;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		286A6C1F30689A9F00409128 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = NotificationContentUI/NotificationContentUI.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationContentUI/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyunseong.SignalApp.NotificationContentUI;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -582,7 +1095,53 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		281862B6306708A000E63D87 /* Build configuration list for PBXNativeTarget "SignalWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				281862B7306708A000E63D87 /* Debug */,
+				281862B8306708A000E63D87 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		286A6B2F3068901F00409128 /* Build configuration list for PBXNativeTarget "NotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				286A6B303068901F00409128 /* Debug */,
+				286A6B313068901F00409128 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		286A6C2030689A9F00409128 /* Build configuration list for PBXNativeTarget "NotificationContentUI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				286A6C1E30689A9F00409128 /* Debug */,
+				286A6C1F30689A9F00409128 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2818626D3066F8FA00E63D87 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2818626E3066F8FA00E63D87 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2818626D3066F8FA00E63D87 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 281862373066F86A00E63D87 /* Project object */;
 }

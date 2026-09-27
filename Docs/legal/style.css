@@ -1,0 +1,137 @@
+:root {
+  color-scheme: light;
+  --bg: #f7f4fb;
+  --card: #ffffff;
+  --text: #1a1a1f;
+  --muted: #5c5c66;
+  --accent: #7b6cf6;
+  --border: rgba(123, 108, 246, 0.2);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: linear-gradient(180deg, #fdfbff 0%, var(--bg) 40%, #eef6ff 100%);
+  min-height: 100vh;
+}
+
+.site-header,
+.content,
+.site-footer {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.site-header {
+  padding-top: 2.5rem;
+  padding-bottom: 1rem;
+}
+
+.eyebrow {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+h1 {
+  font-size: 1.75rem;
+  margin: 0 0 0.35rem;
+  letter-spacing: -0.02em;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.content {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem 1.35rem 2rem;
+  box-shadow: 0 8px 32px rgba(90, 70, 160, 0.08);
+  margin-bottom: 2rem;
+}
+
+.content h2 {
+  font-size: 1.1rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.content h3 {
+  font-size: 0.98rem;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+  color: var(--muted);
+}
+
+.content p,
+.content li {
+  font-size: 0.95rem;
+}
+
+.content ul {
+  padding-left: 1.2rem;
+}
+
+.content code {
+  font-size: 0.85em;
+  background: #f0eef8;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+a {
+  color: var(--accent);
+}
+
+.site-footer {
+  padding-bottom: 2.5rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.site-footer nav {
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.card-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.card-list a {
+  display: block;
+  padding: 1rem 1.1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(90, 70, 160, 0.06);
+}
+
+.card-list a span {
+  display: block;
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}

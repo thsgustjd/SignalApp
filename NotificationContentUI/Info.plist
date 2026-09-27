@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>CFBundleIcons</key>
+	<dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleIconName</key>
+			<string>AppIcon</string>
+		</dict>
+	</dict>
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionAttributes</key>
+		<dict>
+			<key>UNNotificationExtensionCategory</key>
+			<string>SIGNAL_RICH_MEDIA</string>
+			<key>UNNotificationExtensionDefaultContentHidden</key>
+			<false/>
+			<key>UNNotificationExtensionInitialContentSizeRatio</key>
+			<real>0.5</real>
+			<key>UNNotificationExtensionOverridesDefaultTitle</key>
+			<false/>
+		</dict>
+		<key>NSExtensionMainStoryboard</key>
+		<string>MainInterface</string>
+		<key>NSExtensionPointIdentifier</key>
+		<string>com.apple.usernotifications.content-extension</string>
+	</dict>
+	<key>SignalAppGroupIdentifier</key>
+	<string>group.com.hs.SignalApp</string>
+	<key>SignalHostApplicationBundleIdentifier</key>
+	<string>com.hyunseong.SignalApp</string>
+</dict>
+</plist>
