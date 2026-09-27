@@ -8,9 +8,9 @@ import Foundation
 /// App Store Connect · 앱 내 링크와 동일한 URL로 맞춥니다.
 enum AppLegalConfig {
     /// GitHub Pages: `docs/legal` 배포 후 본인 URL로 수정 (README: docs/legal/README.md)
-    private static let legalSiteBase = "https://YOUR_GITHUB_USERNAME.github.io/SignalApp/legal"
+    private static let legalSiteBase = "https://thsgustjd.github.io/SignalApp/legal"
 
-    static let supportEmail = "support@example.com"
+    static let supportEmail = "duftlaglehsdmfqjfwk@gmail.com"
 
     static var privacyPolicyURL: URL? {
         URL(string: "\(legalSiteBase)/privacy.html")
