@@ -1,6 +1,8 @@
 # 법적 고지 웹페이지 (GitHub Pages)
 
-`privacy.html` · `terms.html` · `developer-story.html` — App Store·앱 내 링크용입니다.
+`privacy.html` · `terms.html` · `developer-story.html` · `support-ledger.html` — App Store·앱 내 링크용입니다.
+
+`support-ledger.html` 표는 저장소에서 HTML `<td>` 칸을 직접 수정하거나, 로컬에서 표를 편집한 뒤 내용을 HTML에 반영해 push하면 GitHub Pages에 공개됩니다.
 
 ## 1. 이메일 맞추기
 
