@@ -49,6 +49,10 @@ struct DrawingSurpriseModal: View {
                 .background(
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
                         .fill(Color.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .strokeBorder(CozyTheme.uiBorder, lineWidth: CozyTheme.uiBorderWidth)
+                        )
                         .shadow(color: .black.opacity(0.12), radius: 20, y: 8)
                 )
 

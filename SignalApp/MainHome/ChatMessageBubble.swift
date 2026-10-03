@@ -78,16 +78,16 @@ struct ChatMessageBubble: View {
                 .padding(.vertical, 10)
                 .background(bubbleBackground)
                 .overlay(bubbleStroke)
+        } else {
+            let emojiText = message.content ?? ""
+            Text(emojiText.isEmpty ? "…" : emojiText)
+                .font(.system(size: 30))
+                .foregroundStyle(Color(red: 0.12, green: 0.11, blue: 0.10))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(bubbleBackground)
+                .overlay(bubbleStroke)
         }
-
-        let emojiText = message.content ?? ""
-        Text(emojiText.isEmpty ? "…" : emojiText)
-            .font(.system(size: 30))
-            .foregroundStyle(Color(red: 0.12, green: 0.11, blue: 0.10))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(bubbleBackground)
-            .overlay(bubbleStroke)
     }
 
     private var mediaBubble: some View {
@@ -113,7 +113,7 @@ struct ChatMessageBubble: View {
         }
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
+                .strokeBorder(CozyTheme.uiBorder, lineWidth: CozyTheme.uiBorderWidth)
         )
         .background(bubbleBackground)
     }
@@ -139,6 +139,6 @@ struct ChatMessageBubble: View {
 
     private var bubbleStroke: some View {
         RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .strokeBorder(Color.black.opacity(0.06), lineWidth: 1)
+            .strokeBorder(CozyTheme.uiBorder, lineWidth: CozyTheme.uiBorderWidth)
     }
 }

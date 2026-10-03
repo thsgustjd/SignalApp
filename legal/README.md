@@ -1,6 +1,6 @@
 # 법적 고지 웹페이지 (GitHub Pages)
 
-`privacy.html` · `terms.html` 은 App Store Connect **Privacy Policy URL** 및 앱 내 링크용입니다.
+`privacy.html` · `terms.html` · `developer-story.html` — App Store·앱 내 링크용입니다.
 
 ## 1. 이메일 맞추기
 
@@ -12,7 +12,7 @@
 1. 이 저장소를 GitHub에 push  
 2. 저장소 **Settings → Pages**  
 3. **Build and deployment → Source:** Deploy from a branch  
-4. **Branch:** `main` · **Folder:** `/docs`  
+4. **Branch:** `main` · **Folder:** `/legal` (또는 저장소 루트의 `legal/`을 Pages에 맞게 배포)  
 5. 저장 후 1~3분 뒤 URL 확인 (예: `https://<사용자명>.github.io/<저장소명>/legal/privacy.html`)
 
 저장소 이름이 `SignalApp`이면:
@@ -36,7 +36,7 @@ private static let legalSiteBase = "https://YOUR_USERNAME.github.io/SignalApp/le
 ## 로컬 미리보기
 
 ```bash
-cd docs/legal && python3 -m http.server 8765
+cd legal && python3 -m http.server 8765
 ```
 
 브라우저: http://localhost:8765/privacy.html

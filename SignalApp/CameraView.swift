@@ -259,8 +259,10 @@ struct CameraView: View {
                 }
             } catch {
                 await MainActor.run {
-                    lastError = error.localizedDescription
-                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                    lastError = UserFacingErrorMessage.actionMessage(from: error)
+                    if lastError != nil {
+                        UINotificationFeedbackGenerator().notificationOccurred(.error)
+                    }
                 }
             }
         }
@@ -273,9 +275,9 @@ private struct SimulatorPlaceholderBackground: View {
     var body: some View {
         LinearGradient(
             colors: [
-                Color(red: 0.35, green: 0.2, blue: 0.55),
-                Color(red: 0.1, green: 0.35, blue: 0.45),
-                Color(red: 0.05, green: 0.08, blue: 0.12)
+                Color(red: 0.35, green: 0.58, blue: 0.78),
+                Color(red: 0.12, green: 0.42, blue: 0.58),
+                Color(red: 0.05, green: 0.10, blue: 0.16)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -289,9 +291,9 @@ private enum SamplePhotoGenerator {
         let renderer = UIGraphicsImageRenderer(size: size)
         let image = renderer.image { context in
             let colors = [
-                UIColor(red: 0.45, green: 0.25, blue: 0.85, alpha: 1).cgColor,
-                UIColor(red: 0.15, green: 0.65, blue: 0.75, alpha: 1).cgColor,
-                UIColor(red: 0.95, green: 0.45, blue: 0.55, alpha: 1).cgColor
+                UIColor(red: 0.45, green: 0.72, blue: 0.95, alpha: 1).cgColor,
+                UIColor(red: 0.20, green: 0.62, blue: 0.88, alpha: 1).cgColor,
+                UIColor(red: 0.55, green: 0.82, blue: 0.98, alpha: 1).cgColor
             ]
             let gradient = CGGradient(
                 colorsSpace: CGColorSpaceCreateDeviceRGB(),

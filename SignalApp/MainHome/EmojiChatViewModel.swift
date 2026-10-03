@@ -9,7 +9,7 @@ import UIKit
 @MainActor
 final class EmojiChatViewModel: ObservableObject {
     @Published private(set) var room: Room
-    let senderNickname: String
+    private(set) var senderNickname: String
 
     @Published private(set) var messages: [MediaMessage] = []
     @Published private var blockFilterEpoch = 0
@@ -32,6 +32,12 @@ final class EmojiChatViewModel: ObservableObject {
     func syncRoom(_ updated: Room) {
         guard updated != room else { return }
         room = updated
+    }
+
+    func updateSenderNickname(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        senderNickname = trimmed
     }
 
     var partnerNickname: String {
@@ -84,7 +90,7 @@ final class EmojiChatViewModel: ObservableObject {
             print("✅ [Chat] 오늘 메시지 \(fetched.count)건 (emoji/photo/drawing)")
             await markMessagesAsRead()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingErrorMessage.loadMessage(from: error)
             print("❌ [Chat] load 실패: \(error)")
         }
     }
@@ -199,6 +205,8 @@ final class EmojiChatViewModel: ObservableObject {
 
         if isEmergency {
             IncomingHapticFeedback.playEmergencyAlarm()
+        } else if message.type == "nudge", BipbiPagerEasterEgg.isBipbiNudgeContent(message.content) {
+            BipbiIncomingSound.playIfBipbiNudge(content: message.content)
         } else {
             IncomingHapticFeedback.playKeycapTap()
         }
@@ -206,8 +214,12 @@ final class EmojiChatViewModel: ObservableObject {
         let appState = UIApplication.shared.applicationState
 
         if appState == .active {
-            Task {
-                await deliverPartnerMessageViaAPNs(message)
+            // 포그라운드: INSERT 시 notifyPartnerPush가 이미 APNs 1회 발송. Realtime에서 Edge 재호출 시 넛지가 두 번 뜸(예: 뭐해?×2).
+            switch message.type {
+            case "drawing", "photo":
+                Task { await deliverPartnerMessageViaAPNs(message) }
+            default:
+                break
             }
         } else {
             // 백그라운드·종료: INSERT 시 notifyPartnerPush / 위젯 Edge Function이 상대에게 APNs 발송
@@ -315,6 +327,7 @@ final class EmojiChatViewModel: ObservableObject {
         defer { isSending = false }
 
         do {
+            try await HeartWalletService.shared.consumeUsage(action: "emoji")
             let saved = try await manager.sendEmojiMessage(
                 roomId: room.id,
                 senderNickname: senderNickname,
@@ -324,7 +337,7 @@ final class EmojiChatViewModel: ObservableObject {
             print("✅ [EmojiChat] 서버 저장 완료 id=\(saved.id) content=\(saved.content ?? "")")
         } catch {
             messages.removeAll { $0.id == pendingId }
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingErrorMessage.actionMessage(from: error)
             print("❌ [EmojiChat] send 실패: \(error)")
         }
     }

@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct ReportSheetContext: Identifiable {
     let room: Room
@@ -14,6 +15,95 @@ struct ReportSheetContext: Identifiable {
         if let message { return "msg-\(message.id.uuidString)" }
         if let preselectedUserId { return "user-\(preselectedUserId)" }
         return "room-\(room.id.uuidString)"
+    }
+}
+
+// MARK: - Account
+
+struct AccountSettingsView: View {
+    @EnvironmentObject private var authSession: AuthSessionManager
+
+    @State private var profileName = ProfileDisplayNameStore.saved ?? ""
+    @State private var profileErrorMessage: String?
+    @State private var showNicknameConfirmedToast = false
+
+    private var accountSummary: String {
+        guard let user = SupabaseManager.shared.client.auth.currentUser else {
+            return "로그인 정보 없음"
+        }
+        if let email = user.email, !email.isEmpty {
+            return email
+        }
+        let provider = user.appMetadata["provider"]?.stringValue ?? "Apple 또는 Google"
+        return "\(provider) 계정으로 로그인됨"
+    }
+
+    var body: some View {
+        List {
+            Section {
+                LabeledContent("계정", value: accountSummary)
+            } footer: {
+                Text("Apple 또는 Google로 로그인한 계정입니다. 하트·이용 횟수는 이 계정에 저장됩니다.")
+            }
+
+            Section {
+                TextField("영문·숫자", text: $profileName)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .onChange(of: profileName) { _, newValue in
+                        profileName = NicknameValidator.sanitizedInput(newValue)
+                    }
+                Button("닉네임 확인") {
+                    guard NicknameValidator.isValid(profileName) else {
+                        profileErrorMessage = SupabaseManagerError.invalidNickname.localizedDescription
+                        return
+                    }
+                    profileErrorMessage = nil
+                    ProfileDisplayNameStore.save(profileName)
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showNicknameConfirmedToast = true
+                    }
+                    Task {
+                        try? await Task.sleep(for: .seconds(1.6))
+                        await MainActor.run {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showNicknameConfirmedToast = false
+                            }
+                        }
+                    }
+                }
+                if let profileErrorMessage {
+                    Text(profileErrorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+            } header: {
+                Text("채팅 기본 닉네임")
+            } footer: {
+                Text("상대에게 보이는 이름의 기본값입니다. 각 채팅방 「채팅방 설정」에서 방마다 바꿀 수 있어요.")
+            }
+
+            Section {
+                Button("로그아웃", role: .destructive) {
+                    Task { await authSession.signOut() }
+                }
+            }
+        }
+        .navigationTitle("계정설정")
+        .navigationBarTitleDisplayMode(.inline)
+        .overlay {
+            if showNicknameConfirmedToast {
+                Text("확인")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .background(Color.black.opacity(0.82), in: Capsule())
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: showNicknameConfirmedToast)
     }
 }
 
@@ -197,7 +287,7 @@ struct ReportContentView: View {
             try await UserSafetyService.submitReport(draft)
             didSubmit = true
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingErrorMessage.actionMessage(from: error)
         }
     }
 }
@@ -292,7 +382,7 @@ struct DeleteMyDataView: View {
             onAccountDeleted?()
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingErrorMessage.actionMessage(from: error)
         }
     }
 }

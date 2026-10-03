@@ -5,6 +5,15 @@
 
 import SwiftUI
 
+extension Notification.Name {
+    /// 키캡 전송 후 다이어리 `monthMessages` 갱신용.
+    static let keycapDiaryShouldReload = Notification.Name("KeycapDiaryShouldReload")
+}
+
+enum KeycapDiaryReloadKeys {
+    static let message = "KeycapDiaryReloadKeys.message"
+}
+
 struct CalendarArchiveView: View {
     let roomId: UUID
     let myUserId: String
@@ -94,8 +103,32 @@ struct CalendarArchiveView: View {
                     Button("닫기") { dismiss() }
                 }
             }
-            .task(id: model.displayedMonth) {
+            .task {
+                model.focusOnToday()
                 await model.loadMonth()
+            }
+            .onAppear {
+                model.focusOnToday()
+                Task { await model.loadMonth() }
+            }
+            .onChange(of: model.displayedMonth) { _, _ in
+                Task { await model.loadMonth() }
+            }
+            .onChange(of: selectedSegment) { _, segment in
+                if segment == 0 {
+                    Task { await model.loadMonth() }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .keycapDiaryShouldReload)) { note in
+                guard let postedRoomId = note.object as? UUID, postedRoomId == roomId else { return }
+                let sent = note.userInfo?[KeycapDiaryReloadKeys.message] as? MediaMessage
+                if let sent {
+                    model.applyKeycapSentForDiary(sent)
+                }
+                Task { await model.reloadMonth(merging: sent) }
+            }
+            .task(id: roomId) {
+                await model.runDiaryRealtimeMerge(roomId: roomId)
             }
             .fullScreenCover(isPresented: lightboxPresented) {
                 if let lightboxURL {
@@ -209,6 +242,7 @@ struct CalendarArchiveView: View {
         return ScrollView {
             ScrollView(.horizontal, showsIndicators: false) {
                 KeycapStatsMatrixTable(matrix: matrix)
+                    .id("\(model.selectedDate.timeIntervalSince1970)-\(model.monthMessages.count)")
             }
             .padding(16)
         }
@@ -320,7 +354,7 @@ private struct KeycapStatsMatrixTable: View {
                     Text(row.emoji)
                         .font(.title3)
                         .frame(width: emojiColumnWidth)
-                    ForEach(row.counts, id: \.memberId) { cell in
+                    ForEach(row.counts, id: \.cellId) { cell in
                         Text(cell.count > 0 ? "\(cell.count)" : "")
                             .font(.subheadline.weight(.semibold).monospacedDigit())
                             .foregroundStyle(cell.count > 0 ? Color.accentColor : Color.clear)
@@ -339,7 +373,7 @@ private struct KeycapStatsMatrixTable: View {
         .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+                .strokeBorder(CozyTheme.uiBorder, lineWidth: CozyTheme.uiBorderWidth)
         )
     }
 }
@@ -399,7 +433,8 @@ final class CalendarArchiveViewModel: ObservableObject {
     struct KeycapStatsMatrixRow: Identifiable {
         let keycapKey: String
         let emoji: String
-        let counts: [(memberId: String, count: Int)]
+        /// `cellId` — 행×열 ForEach identity (`memberId`만 쓰면 SwiftUI가 행 간 셀을 재사용해 숫자가 안 보일 수 있음).
+        let counts: [(cellId: String, count: Int)]
 
         var id: String { keycapKey }
     }
@@ -415,6 +450,8 @@ final class CalendarArchiveViewModel: ObservableObject {
     @Published var monthMessages: [MediaMessage] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+
+    private var keycapDiaryDebugFingerprint: String?
 
     private let calendar = Calendar.current
     private let manager = SupabaseManager.shared
@@ -434,15 +471,20 @@ final class CalendarArchiveViewModel: ObservableObject {
         statMemberColumns: [KeycapStatMemberColumn] = []
     ) {
         self.roomId = roomId
-        self.myUserId = myUserId
+        self.myUserId = DeviceUserId.canonical(myUserId)
         self.myDisplayName = myDisplayName
         self.partnerDisplayName = partnerDisplayName
         if statMemberColumns.isEmpty {
             self.statMemberColumns = [
-                KeycapStatMemberColumn(userId: myUserId, displayName: myDisplayName)
+                KeycapStatMemberColumn(userId: self.myUserId, displayName: myDisplayName)
             ]
         } else {
-            self.statMemberColumns = Array(statMemberColumns.prefix(5))
+            self.statMemberColumns = Array(statMemberColumns.prefix(5)).map {
+                KeycapStatMemberColumn(
+                    userId: DeviceUserId.canonical($0.userId),
+                    displayName: $0.displayName
+                )
+            }
         }
         let today = Calendar.current.startOfDay(for: Date())
         self.displayedMonth = today
@@ -495,23 +537,70 @@ final class CalendarArchiveViewModel: ObservableObject {
     func shiftMonth(by value: Int) {
         if let next = calendar.date(byAdding: .month, value: value, to: displayedMonth) {
             displayedMonth = next
+            if !calendar.isDate(selectedDate, equalTo: next, toGranularity: .month) {
+                let today = calendar.startOfDay(for: Date())
+                if calendar.isDate(today, equalTo: next, toGranularity: .month) {
+                    selectedDate = today
+                } else if let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: next)) {
+                    selectedDate = monthStart
+                }
+            }
+            keycapDiaryDebugFingerprint = nil
         }
     }
 
     func select(day: Date) {
         selectedDate = calendar.startOfDay(for: day)
+        keycapDiaryDebugFingerprint = nil
+    }
+
+    /// 다이어리를 열 때 **항상 당일** + 당일이 속한 달 (자동으로 다른 날로 옮기지 않음).
+    func focusOnToday() {
+        let today = calendar.startOfDay(for: Date())
+        selectedDate = today
+        displayedMonth = today
+        keycapDiaryDebugFingerprint = nil
+    }
+
+    /// 키캡 전송 직후 — fetch 전에 `monthMessages`·선택일을 먼저 맞춤 (다이어리 켜 둔 상태).
+    func applyKeycapSentForDiary(_ message: MediaMessage) {
+        let monthInterval = SupabaseManager.localCalendarMonthInterval(containing: displayedMonth, calendar: calendar)
+        upsertMonthMessage(message, monthInterval: monthInterval)
+        let today = calendar.startOfDay(for: Date())
+        if calendar.isDate(message.createdAt, inSameDayAs: today) {
+            selectedDate = today
+            if !calendar.isDate(displayedMonth, equalTo: today, toGranularity: .month) {
+                displayedMonth = today
+            }
+        }
     }
 
     func isSameDay(_ lhs: Date, _ rhs: Date) -> Bool {
         calendar.isDate(lhs, inSameDayAs: rhs)
     }
 
+    /// 캘린더 점 — **키캡 다이어리 집계 대상**이 있는 날만 (채팅만 있는 날과 구분).
     func hasActivity(on day: Date) -> Bool {
-        !messages(on: day).isEmpty
+        !keycapDiaryMessages(on: day).isEmpty
     }
 
     func messages(on day: Date) -> [MediaMessage] {
-        monthMessages.filter { isSameDay($0.createdAt, day) }
+        let interval = Self.localDayInterval(for: calendar.startOfDay(for: day), calendar: calendar)
+        return monthMessages.filter { $0.createdAt >= interval.start && $0.createdAt < interval.end }
+    }
+
+    /// 키캡 다이어리 집계 — `nudge` + 레거시 `emoji`(❤️ 등) 포함.
+    private func keycapDiaryMessages(on day: Date) -> [MediaMessage] {
+        messages(on: day).filter {
+            AppGroupStorage.isKeycapDiaryCountableMessage(type: $0.type, content: $0.content)
+        }
+    }
+
+    /// 로컬 타임존 기준 하루 [00:00, 다음날 00:00).
+    private static func localDayInterval(for day: Date, calendar: Calendar) -> (start: Date, end: Date) {
+        let start = calendar.startOfDay(for: day)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start
+        return (start, end)
     }
 
     func chatMessages(on day: Date) -> [MediaMessage] {
@@ -519,18 +608,18 @@ final class CalendarArchiveViewModel: ObservableObject {
     }
 
     func keycapStats(on day: Date) -> [SenderKeycapStats] {
-        let nudges = messages(on: day).filter { $0.type == "nudge" }
+        let nudges = keycapDiaryMessages(on: day)
         guard !nudges.isEmpty else { return [] }
 
         var bySender: [String: [String: Int]] = [:]
         for nudge in nudges {
-            guard let key = AppGroupStorage.keycapSymbolKey(fromNudgeContent: nudge.content),
-                  AppGroupStorage.isActiveKeycapType(key) else {
+            guard let key = AppGroupStorage.keycapDiarySymbolKey(fromNudgeContent: nudge.content) else {
                 continue
             }
-            var bucket = bySender[nudge.senderId, default: [:]]
+            let senderKey = DeviceUserId.canonical(nudge.senderId)
+            var bucket = bySender[senderKey, default: [:]]
             bucket[key, default: 0] += 1
-            bySender[nudge.senderId] = bucket
+            bySender[senderKey] = bucket
         }
 
         return bySender.map { senderId, counts in
@@ -546,44 +635,143 @@ final class CalendarArchiveViewModel: ObservableObject {
 
     /// 표 UI — 행: 키캡 순서, 열: 멤버(최대 5명).
     func keycapStatsMatrix(on day: Date) -> KeycapStatsMatrix {
-        let nudges = messages(on: day).filter { $0.type == "nudge" }
+        let nudges = keycapDiaryMessages(on: day)
         var bySender: [String: [String: Int]] = [:]
         for nudge in nudges {
-            guard let key = AppGroupStorage.keycapSymbolKey(fromNudgeContent: nudge.content),
-                  AppGroupStorage.isActiveKeycapType(key) else {
+            guard let key = AppGroupStorage.keycapDiarySymbolKey(fromNudgeContent: nudge.content) else {
                 continue
             }
-            var bucket = bySender[nudge.senderId, default: [:]]
+            let senderKey = DeviceUserId.canonical(nudge.senderId)
+            var bucket = bySender[senderKey, default: [:]]
             bucket[key, default: 0] += 1
-            bySender[nudge.senderId] = bucket
+            bySender[senderKey] = bucket
         }
 
-        let columns = resolvedStatColumns(from: nudges)
+        let columns = resolvedStatColumns(bySender: bySender, nudges: nudges)
         let rows = AppGroupStorage.keycapNudgeTypeOrder.map { key in
             let emoji = AppGroupStorage.keycapSymbolPresentation(for: key).emoji
-            let counts = columns.map { column in
+            let counts = columns.enumerated().map { columnIndex, column in
                 (
-                    memberId: column.userId,
-                    count: nudgeCount(for: column.userId, keycapKey: key, in: bySender)
+                    cellId: "\(key)-\(columnIndex)-\(column.userId)",
+                    count: countInSenderBucket(
+                        bySender: bySender,
+                        senderKeyHint: column.userId,
+                        keycapKey: key
+                    )
                 )
             }
             return KeycapStatsMatrixRow(keycapKey: key, emoji: emoji, counts: counts)
         }
 
-        return KeycapStatsMatrix(columns: columns, rows: rows)
+        let matrix = KeycapStatsMatrix(columns: columns, rows: rows)
+        let senderSig = bySender.keys.sorted().joined(separator: ",")
+        let fingerprint = "\(day.timeIntervalSince1970)-\(monthMessages.count)-\(nudges.count)-\(senderSig)"
+        if keycapDiaryDebugFingerprint != fingerprint {
+            keycapDiaryDebugFingerprint = fingerprint
+            emitKeycapDiaryDebug(
+                day: day,
+                nudges: nudges,
+                bySender: bySender,
+                columns: columns,
+                rows: rows
+            )
+        }
+        return matrix
     }
 
     func loadMonth() async {
+        await reloadMonth(merging: nil)
+    }
+
+    /// 다이어리 표시 중 Realtime INSERT → `monthMessages`에 즉시 반영 (오늘·상대 키캡).
+    func runDiaryRealtimeMerge(roomId: UUID) async {
+        for await message in manager.watchChatMessageInserts(roomId: roomId) {
+            guard !Task.isCancelled else { break }
+            mergeRealtimeMessageIfNeeded(message)
+        }
+    }
+
+    func mergeRealtimeMessageIfNeeded(_ message: MediaMessage) {
+        guard message.roomId == roomId else { return }
+        let monthInterval = SupabaseManager.localCalendarMonthInterval(containing: displayedMonth, calendar: calendar)
+        guard message.createdAt >= monthInterval.start, message.createdAt < monthInterval.end else { return }
+        upsertMonthMessage(message, monthInterval: monthInterval)
+    }
+
+    /// 월 재조회 + 방금 INSERT한 넛지를 즉시 반영 (fetch 지연·다이어리 선오픈 대비).
+    func reloadMonth(merging sentMessage: MediaMessage?) async {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
 
+        let monthInterval = SupabaseManager.localCalendarMonthInterval(containing: displayedMonth, calendar: calendar)
+        let rangeStart = monthInterval.start
+        let rangeEnd = monthInterval.end
+
         do {
             monthMessages = try await manager.fetchMessagesForMonth(roomId: roomId, month: displayedMonth)
+            if let sentMessage {
+                upsertMonthMessage(sentMessage, monthInterval: monthInterval)
+            }
+            keycapDiaryDebugFingerprint = nil
+            KeycapDiaryDebug.logMonthFetch(
+                roomId: roomId,
+                month: displayedMonth,
+                rangeStart: rangeStart,
+                rangeEnd: rangeEnd,
+                myUserId: myUserId,
+                statColumns: statMemberColumns.map { ($0.userId, $0.displayName) },
+                messages: monthMessages.map(KeycapDiaryDebug.MessageRow.init(mediaMessage:))
+            )
+            if let sentMessage {
+                KeycapDiaryDebug.log(
+                    "reloadMonth merged sent id=\(sentMessage.id) created=\(sentMessage.createdAt) diaryEligible=\(AppGroupStorage.isKeycapDiaryCountableMessage(type: sentMessage.type, content: sentMessage.content))"
+                )
+            }
+            await supplementSelectedDayIfKeycapRowsMissing(monthInterval: monthInterval)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingErrorMessage.loadMessage(from: error)
             monthMessages = []
+            if let sentMessage {
+                upsertMonthMessage(sentMessage, monthInterval: monthInterval)
+            }
+            KeycapDiaryDebug.log("loadMonth FAILED: \(error.localizedDescription)")
         }
+    }
+
+    /// 월 fetch 후에도 선택일 키캡 row가 없으면 해당 **로컬 하루**만 재조회 (1000행 잘림·INSERT 지연 보정).
+    private func supplementSelectedDayIfKeycapRowsMissing(monthInterval: (start: Date, end: Date)) async {
+        let day = calendar.startOfDay(for: selectedDate)
+        guard keycapDiaryMessages(on: day).isEmpty else { return }
+
+        do {
+            let dayRows = try await manager.fetchMessagesForLocalDay(roomId: roomId, day: day, calendar: calendar)
+            guard !dayRows.isEmpty else { return }
+            for row in dayRows {
+                upsertMonthMessage(row, monthInterval: monthInterval)
+            }
+            keycapDiaryDebugFingerprint = nil
+            KeycapDiaryDebug.log(
+                """
+                supplementSelectedDay day=\(KeycapDiaryDebug.dayLabelForLog(day)) \
+                addedRows=\(dayRows.count) diaryEligible=\(dayRows.filter { AppGroupStorage.isKeycapDiaryCountableMessage(type: $0.type, content: $0.content) }.count)
+                """
+            )
+        } catch {
+            KeycapDiaryDebug.log("supplementSelectedDay FAILED: \(error.localizedDescription)")
+        }
+    }
+
+    private func upsertMonthMessage(_ message: MediaMessage, monthInterval: (start: Date, end: Date)) {
+        guard message.roomId == roomId else { return }
+        guard message.createdAt >= monthInterval.start, message.createdAt < monthInterval.end else { return }
+        if let index = monthMessages.firstIndex(where: { $0.id == message.id }) {
+            monthMessages[index] = message
+        } else {
+            monthMessages.append(message)
+            monthMessages.sort { $0.createdAt < $1.createdAt }
+        }
+        keycapDiaryDebugFingerprint = nil
     }
 
     private func makeGridDay(date: Date, isCurrentMonth: Bool) -> CalendarGridDay {
@@ -606,17 +794,46 @@ final class CalendarArchiveViewModel: ObservableObject {
         return partnerDisplayName
     }
 
-    private func resolvedStatColumns(from nudges: [MediaMessage]) -> [KeycapStatMemberColumn] {
-        guard statMemberColumns.isEmpty else { return statMemberColumns }
+    private func resolvedStatColumns(
+        bySender: [String: [String: Int]],
+        nudges: [MediaMessage]
+    ) -> [KeycapStatMemberColumn] {
+        if !statMemberColumns.isEmpty {
+            return statMemberColumns.map { column in
+                let matched = resolveSenderId(
+                    for: column,
+                    bySender: bySender,
+                    nudges: nudges,
+                    logResolution: !bySender.isEmpty
+                )
+                if matched == nil, !bySender.isEmpty {
+                    KeycapDiaryDebug.log(
+                        """
+                        column «\(column.displayName)» memberUserId=\(column.userId) \
+                        could not map to bySender keys — counts may show 0 (fallback userId=\(column.userId))
+                        """
+                    )
+                }
+                return KeycapStatMemberColumn(
+                    userId: matched ?? column.userId,
+                    displayName: column.displayName
+                )
+            }
+        }
+
         var seen = Set<String>()
         var columns: [KeycapStatMemberColumn] = []
-        for nudge in nudges {
-            guard !seen.contains(nudge.senderId) else { continue }
-            seen.insert(nudge.senderId)
+        for senderId in bySender.keys.sorted() {
+            let canonical = DeviceUserId.canonical(senderId)
+            guard !seen.contains(canonical) else { continue }
+            seen.insert(canonical)
             columns.append(
                 KeycapStatMemberColumn(
-                    userId: nudge.senderId,
-                    displayName: displayName(for: nudge.senderId, messageNickname: nudge.senderNickname)
+                    userId: senderId,
+                    displayName: displayName(
+                        for: senderId,
+                        messageNickname: nudges.first(where: { DeviceUserId.matches($0.senderId, senderId) })?.senderNickname
+                    )
                 )
             )
             if columns.count >= 5 { break }
@@ -624,11 +841,171 @@ final class CalendarArchiveViewModel: ObservableObject {
         return columns
     }
 
-    private func nudgeCount(for userId: String, keycapKey: String, in bySender: [String: [String: Int]]) -> Int {
-        guard let bucket = bySender.first(where: { DeviceUserId.matches($0.key, userId) })?.value else {
+    /// `room_members.user_id`와 `messages.sender_id` 불일치 시 닉네임·매칭으로 집계 키 보정.
+    private func resolveSenderId(
+        for column: KeycapStatMemberColumn,
+        bySender: [String: [String: Int]],
+        nudges: [MediaMessage],
+        logResolution: Bool = false
+    ) -> String? {
+        if let key = bySender.keys.first(where: { DeviceUserId.matches($0, column.userId) }) {
+            if logResolution {
+            KeycapDiaryDebug.logResolveSender(
+                columnDisplayName: column.displayName,
+                columnUserId: column.userId,
+                outcome: "matched memberUserId",
+                matchedSenderId: key
+            )
+            }
+            return key
+        }
+        for senderId in bySender.keys {
+            let name = displayName(
+                for: senderId,
+                messageNickname: nudges.first(where: { DeviceUserId.matches($0.senderId, senderId) })?.senderNickname
+            )
+            if namesMatch(name, column.displayName) {
+                if logResolution {
+                KeycapDiaryDebug.logResolveSender(
+                    columnDisplayName: column.displayName,
+                    columnUserId: column.userId,
+                    outcome: "matched displayName «\(name)»",
+                    matchedSenderId: senderId
+                )
+                }
+                return senderId
+            }
+        }
+        for nudge in nudges {
+            let senderKey = DeviceUserId.canonical(nudge.senderId)
+            guard bySender[senderKey] != nil else { continue }
+            if namesMatch(nudge.senderNickname, column.displayName) {
+                if logResolution {
+                KeycapDiaryDebug.logResolveSender(
+                    columnDisplayName: column.displayName,
+                    columnUserId: column.userId,
+                    outcome: "matched nudge senderNickname",
+                    matchedSenderId: senderKey
+                )
+                }
+                return senderKey
+            }
+        }
+        if logResolution {
+        KeycapDiaryDebug.logResolveSender(
+            columnDisplayName: column.displayName,
+            columnUserId: column.userId,
+            outcome: "no match",
+            matchedSenderId: nil
+        )
+        }
+        return nil
+    }
+
+    /// `bySender` 버킷 조회 — `resolvedStatColumns`가 넣은 `sender_id` 키·canonical·퍼지 매칭.
+    private func countInSenderBucket(
+        bySender: [String: [String: Int]],
+        senderKeyHint: String,
+        keycapKey: String
+    ) -> Int {
+        if let bucket = bySender[senderKeyHint], let count = bucket[keycapKey] {
+            return count
+        }
+        let canonicalHint = DeviceUserId.canonical(senderKeyHint)
+        if canonicalHint != senderKeyHint,
+           let bucket = bySender[canonicalHint],
+           let count = bucket[keycapKey] {
+            return count
+        }
+        if let matchedKey = bySender.keys.first(where: { DeviceUserId.matches($0, senderKeyHint) }),
+           let count = bySender[matchedKey]?[keycapKey] {
+            return count
+        }
+        return 0
+    }
+
+    private func keycapCount(
+        for member: KeycapStatMemberColumn,
+        keycapKey: String,
+        bySender: [String: [String: Int]],
+        nudges: [MediaMessage]
+    ) -> Int {
+        guard let senderKey = aggregationSenderKey(for: member, bySender: bySender, nudges: nudges) else {
             return 0
         }
-        return bucket[keycapKey] ?? 0
+        return countInSenderBucket(bySender: bySender, senderKeyHint: senderKey, keycapKey: keycapKey)
+    }
+
+    /// `room_members.user_id` ≠ `messages.sender_id` 여도 a/c 열에 합산되도록.
+    private func aggregationSenderKey(
+        for member: KeycapStatMemberColumn,
+        bySender: [String: [String: Int]],
+        nudges: [MediaMessage]
+    ) -> String? {
+        if let resolved = resolveSenderId(for: member, bySender: bySender, nudges: nudges) {
+            return resolved
+        }
+        if let direct = bySender.keys.first(where: { DeviceUserId.matches($0, member.userId) }) {
+            return direct
+        }
+        if DeviceUserId.matches(member.userId, myUserId) {
+            return bySender.keys.first(where: { DeviceUserId.matches($0, myUserId) })
+        }
+        let otherKeys = bySender.keys.filter { !DeviceUserId.matches($0, myUserId) }
+        if otherKeys.count == 1 {
+            return otherKeys[0]
+        }
+        return nil
+    }
+
+    private func namesMatch(_ lhs: String?, _ rhs: String) -> Bool {
+        let a = lhs?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let b = rhs.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !a.isEmpty, !b.isEmpty else { return false }
+        return a.compare(b, options: .caseInsensitive) == .orderedSame
+    }
+
+    private func emitKeycapDiaryDebug(
+        day: Date,
+        nudges: [MediaMessage],
+        bySender: [String: [String: Int]],
+        columns: [KeycapStatMemberColumn],
+        rows: [KeycapStatsMatrixRow]
+    ) {
+        let resolvedTrace: [(userId: String, displayName: String, resolvedFrom: String)] = {
+            if statMemberColumns.isEmpty {
+                return columns.map { ($0.userId, $0.displayName, $0.userId) }
+            }
+            return zip(statMemberColumns, columns).map { member, column in
+                (member.userId, member.displayName, column.userId)
+            }
+        }()
+        let preview = rows.prefix(8).map { row in
+            (emoji: row.emoji, key: row.keycapKey, counts: row.counts.map(\.count))
+        }
+        KeycapDiaryDebug.logDayAggregation(
+            day: day,
+            myUserId: myUserId,
+            myDisplayName: myDisplayName,
+            partnerDisplayName: partnerDisplayName,
+            statColumns: statMemberColumns.map { ($0.userId, $0.displayName) },
+            nudges: nudges.map(KeycapDiaryDebug.MessageRow.init(mediaMessage:)),
+            bySender: bySender,
+            resolvedColumns: resolvedTrace,
+            matrixPreview: Array(preview)
+        )
+    }
+}
+
+private extension KeycapDiaryDebug.MessageRow {
+    init(mediaMessage message: MediaMessage) {
+        self.init(
+            type: message.type,
+            senderId: message.senderId,
+            senderNickname: message.senderNickname,
+            content: message.content,
+            createdAt: message.createdAt
+        )
     }
 }
 

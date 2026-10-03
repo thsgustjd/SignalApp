@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
     const roomLabel =
       body.room_display_title?.trim() ||
       "채팅방";
-    const pushTitle = `${roomLabel}-${nickname}`;
+    const pushTitle = `${roomLabel} - ${nickname}`;
 
     const rich = (type === "drawing" || type === "photo") && !!imageUrl;
 
@@ -126,8 +126,11 @@ Deno.serve(async (req) => {
           : `${nickname} 님이 이모지를 보냈어요`;
         break;
       case "nudge": {
-        const display =
-          (body.content?.trim() ?? "").replace(/^[^|]+\|/, "") || body.content?.trim() || "…";
+        let raw = body.content?.trim() ?? "";
+        if (raw.startsWith("bipbi|")) {
+          raw = raw.slice("bipbi|".length);
+        }
+        const display = raw.replace(/^[^|]+\|/, "") || raw || "…";
         alertBody = display;
         break;
       }

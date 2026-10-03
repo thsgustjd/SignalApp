@@ -26,8 +26,13 @@ enum NudgeService {
             return .cooldown(remainingSeconds: AppGroupStorage.cooldownRemainingSeconds)
         }
 
+        guard AppGroupStorage.canConsumeHeartQuotaLocally() else {
+            return .failed("오늘 무료 이용 횟수를 모두 사용했어요.")
+        }
+
         do {
             try await insertNudgeMessage(roomId: roomId, senderId: senderId)
+            AppGroupStorage.consumeHeartQuotaLocallyIfNeeded()
             AppGroupStorage.lastNudgeSentAt = Date()
             return .sent
         } catch {

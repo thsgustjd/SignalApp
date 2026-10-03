@@ -93,7 +93,7 @@ struct FeedView: View {
         do {
             messages = try await manager.fetchMessages(roomId: room.id)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingErrorMessage.loadMessage(from: error)
         }
     }
 }
@@ -173,6 +173,10 @@ private struct FeedMessageCard: View {
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .strokeBorder(CozyTheme.uiBorder, lineWidth: CozyTheme.uiBorderWidth)
+                )
         )
     }
 }

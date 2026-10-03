@@ -15,6 +15,8 @@
 		286A6C1130689A9E00409128 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 286A6C1030689A9E00409128 /* UserNotifications.framework */; };
 		286A6C1330689A9E00409128 /* UserNotificationsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 286A6C1230689A9E00409128 /* UserNotificationsUI.framework */; };
 		286A6C1D30689A9F00409128 /* NotificationContentUI.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 286A6C0F30689A9E00409128 /* NotificationContentUI.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		28FF387D30715A5B00BD9AB0 /* SignalAppStore.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 28FF387C30715A5B00BD9AB0 /* SignalAppStore.storekit */; };
+		28FF387E30715A5B00BD9AB0 /* SignalAppStore.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 28FF387C30715A5B00BD9AB0 /* SignalAppStore.storekit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -83,6 +85,7 @@
 		286A6C0F30689A9E00409128 /* NotificationContentUI.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationContentUI.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		286A6C1030689A9E00409128 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
 		286A6C1230689A9E00409128 /* UserNotificationsUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotificationsUI.framework; path = System/Library/Frameworks/UserNotificationsUI.framework; sourceTree = SDKROOT; };
+		28FF387C30715A5B00BD9AB0 /* SignalAppStore.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = SignalAppStore.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -220,6 +223,7 @@
 		281862363066F86A00E63D87 = {
 			isa = PBXGroup;
 			children = (
+				28FF387C30715A5B00BD9AB0 /* SignalAppStore.storekit */,
 				281862BA30670BF200E63D87 /* SignalWidgetExtension.entitlements */,
 				281862413066F86A00E63D87 /* SignalApp */,
 				281862533066F86B00E63D87 /* SignalAppTests */,
@@ -465,6 +469,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				28FF387E30715A5B00BD9AB0 /* SignalAppStore.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -486,6 +491,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				28FF387D30715A5B00BD9AB0 /* SignalAppStore.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -707,7 +713,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SignalApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.야르렁밤티키캡";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSCameraUsageDescription = "상대방에게 보낼 사진을 촬영하기 위해 카메라 접근이 필요합니다.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "채팅 사진을 앨범에 저장할 때 사용합니다.";
@@ -752,7 +758,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SignalApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.야르렁밤티키캡";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSCameraUsageDescription = "상대방에게 보낼 사진을 촬영하기 위해 카메라 접근이 필요합니다.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "채팅 사진을 앨범에 저장할 때 사용합니다.";
@@ -880,7 +886,7 @@
 				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SignalWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.야르렁밤티키캡";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -910,7 +916,7 @@
 				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SignalWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.야르렁밤티키캡";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -941,7 +947,7 @@
 				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationService/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.야르렁밤티키캡";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -972,7 +978,7 @@
 				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationService/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.야르렁밤티키캡";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -1004,7 +1010,7 @@
 				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationContentUI/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.야르렁밤티키캡";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -1035,7 +1041,7 @@
 				DEVELOPMENT_TEAM = 8ZRA9D2QG2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NotificationContentUI/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.정병키캡";
+				INFOPLIST_KEY_CFBundleDisplayName = "ㄱ.야르렁밤티키캡";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;

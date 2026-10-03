@@ -12,6 +12,12 @@ func triggerKeycapHaptic() {
     AudioServicesPlaySystemSound(1519)
 }
 
+/// 비상 전송 성공 — 보낸 기기에서 확인 진동.
+func triggerEmergencySentConfirmationHaptic() {
+    AudioServicesPlaySystemSound(1520)
+    AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+}
+
 struct SendHeartIntent: AppIntent {
     static var title: LocalizedStringResource = "키캡 넛지 보내기"
     static var description = IntentDescription("키캡 탭으로 넛지를 보냅니다.")

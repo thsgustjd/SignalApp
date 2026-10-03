@@ -36,7 +36,7 @@ struct DrawingCanvasView: View {
                     .clipShape(RoundedRectangle(cornerRadius: CozyTheme.cornerRadius, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: CozyTheme.cornerRadius, style: .continuous)
-                            .strokeBorder(Color.black.opacity(0.06), lineWidth: 1)
+                            .strokeBorder(CozyTheme.uiBorder, lineWidth: CozyTheme.uiBorderWidth)
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .onAppear {
@@ -69,7 +69,7 @@ struct DrawingCanvasView: View {
                             exportAndSend()
                         }
                         .fontWeight(.semibold)
-                        .foregroundStyle(hasDrawing ? CozyTheme.accent : CozyTheme.textSecondary)
+                        .foregroundStyle(CozyTheme.textPrimary)
                         .disabled(isSending)
                     }
                 }
@@ -106,8 +106,8 @@ struct DrawingCanvasView: View {
                             .overlay(
                                 Circle()
                                     .strokeBorder(
-                                        selectedColor == item.uiColor ? CozyTheme.accent : Color.clear,
-                                        lineWidth: 3
+                                        selectedColor == item.uiColor ? CozyTheme.uiBorder : CozyTheme.uiBorder.opacity(0.35),
+                                        lineWidth: selectedColor == item.uiColor ? 2 : 1
                                     )
                             )
                     }

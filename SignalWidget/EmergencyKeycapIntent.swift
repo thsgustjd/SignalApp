@@ -20,6 +20,7 @@ struct EmergencyKeycapPressIntent: AppIntent {
                 let result = await HeartWidgetService.sendEmergency()
                 switch result {
                 case .sent:
+                    triggerEmergencySentConfirmationHaptic()
                     print("🚨 [EmergencyIntent] sent")
                 case .cooldown(let remaining):
                     print("🚨 [EmergencyIntent] cooldown \(remaining)s")

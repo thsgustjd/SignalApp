@@ -15,39 +15,80 @@ enum HeartWidgetService {
             return .notConfigured
         }
 
+        guard AppGroupStorage.canConsumeHeartQuotaLocally() else {
+            return .failed("오늘 무료 이용 횟수를 모두 사용했어요. 앱에서 하트·무제한 이용권을 확인해 주세요.")
+        }
+
         let senderNickname = AppGroupStorage.currentSenderNickname?.trimmingCharacters(in: .whitespacesAndNewlines)
         let pushNickname = (senderNickname?.isEmpty == false) ? senderNickname! : "me"
 
-        if AppGroupStorage.isWidgetHeartThrottled(minInterval: minSendInterval) {
-            return .cooldown(remainingSeconds: 0)
-        }
+        let bipbiBonus = BipbiPagerEasterEgg.recordTap(symbolKey: symbolKey)
+        let primaryText = AppGroupStorage.getMessage(for: symbolKey)
+        let primary = AppGroupStorage.storedContent(forKeycapNudge: symbolKey, messageText: primaryText)
 
         do {
-            let text = AppGroupStorage.getMessage(for: symbolKey)
-            let content = text
-            let messageId = UUID()
-            try await insertHeartNudge(
-                roomId: roomId,
-                senderId: senderId,
-                messageId: messageId,
-                content: content
-            )
-            AppGroupStorage.recordWidgetHeartSent()
-
             let recipients = await MessagePushClient.recipientUserIds(roomId: roomId, senderId: senderId)
             let roomTitle = AppGroupStorage.pushRoomDisplayTitle(for: roomId) ?? "채팅방"
-            for recipientId in recipients {
-                await MessagePushClient.send(
-                    recipientId: recipientId,
-                    messageId: messageId,
+
+            let docTrigger = AppGroupStorage.normalizedKeycapType("doc")
+            let key = AppGroupStorage.normalizedKeycapType(symbolKey)
+            let suppressPrimaryPush = key == docTrigger && bipbiBonus != nil
+
+            if AppGroupStorage.isWidgetHeartThrottled(minInterval: minSendInterval) {
+                if bipbiBonus == nil {
+                    return .cooldown(remainingSeconds: 0)
+                }
+            } else {
+                let messageId = UUID()
+                try await insertHeartNudge(
                     roomId: roomId,
                     senderId: senderId,
-                    senderNickname: pushNickname,
-                    messageType: "nudge",
-                    content: content,
-                    imageURL: nil,
-                    roomDisplayTitle: roomTitle
+                    messageId: messageId,
+                    content: primary,
+                    symbolKeyHint: symbolKey
                 )
+                AppGroupStorage.consumeHeartQuotaLocallyIfNeeded()
+                AppGroupStorage.recordWidgetHeartSent()
+
+                if !suppressPrimaryPush {
+                    for recipientId in recipients {
+                        await MessagePushClient.send(
+                            recipientId: recipientId,
+                            messageId: messageId,
+                            roomId: roomId,
+                            senderId: senderId,
+                            senderNickname: pushNickname,
+                            messageType: "nudge",
+                            content: primary,
+                            imageURL: nil,
+                            roomDisplayTitle: roomTitle
+                        )
+                    }
+                }
+            }
+
+            if let bipbiBonus {
+                let bonusId = UUID()
+                try await insertHeartNudge(
+                    roomId: roomId,
+                    senderId: senderId,
+                    messageId: bonusId,
+                    content: bipbiBonus
+                )
+
+                for recipientId in recipients {
+                    await MessagePushClient.send(
+                        recipientId: recipientId,
+                        messageId: bonusId,
+                        roomId: roomId,
+                        senderId: senderId,
+                        senderNickname: pushNickname,
+                        messageType: "nudge",
+                        content: bipbiBonus,
+                        imageURL: nil,
+                        roomDisplayTitle: roomTitle
+                    )
+                }
             }
 
             return .sent
@@ -148,7 +189,8 @@ enum HeartWidgetService {
         roomId: UUID,
         senderId: String,
         messageId: UUID,
-        content: String
+        content: String,
+        symbolKeyHint: String? = nil
     ) async throws {
         let endpoint = SignalSupabaseConfig.url
             .appendingPathComponent("rest/v1/messages")
@@ -161,12 +203,16 @@ enum HeartWidgetService {
         request.setValue("Bearer \(SignalSupabaseConfig.publishableKey)", forHTTPHeaderField: "Authorization")
         request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
 
+        let storedContent = AppGroupStorage.canonicalKeycapNudgeInsertContent(
+            content,
+            symbolKey: symbolKeyHint
+        )
         let payload = HeartNudgeInsertPayload(
             id: messageId,
             roomId: roomId,
             senderId: senderId,
             type: "nudge",
-            content: content
+            content: storedContent
         )
         request.httpBody = try JSONEncoder().encode(payload)
 
@@ -178,6 +224,15 @@ enum HeartWidgetService {
             let body = String(data: data, encoding: .utf8) ?? "HTTP \(http.statusCode)"
             throw HeartWidgetServiceError.server(body)
         }
+
+        KeycapDiaryDebug.logKeycapInsert(
+            source: "HeartWidgetService.insertHeartNudge",
+            roomId: roomId,
+            senderId: senderId,
+            content: storedContent,
+            messageId: messageId,
+            symbolKeyHint: symbolKeyHint
+        )
     }
 }
 

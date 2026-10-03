@@ -519,20 +519,24 @@ struct EmergencyTimelineProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<EmergencyEntry>) -> Void) {
-        let phase = AppGroupStorage.emergencyInteractionPhase()
+        let now = Date()
+        let phase = AppGroupStorage.emergencyInteractionPhase(now: now)
         let entry = EmergencyEntry(
-            date: .now,
+            date: now,
             phase: phase,
             isLinked: AppGroupStorage.isWidgetSendConfigured
         )
         let policy: TimelineReloadPolicy = {
+            if let reloadAt = AppGroupStorage.emergencyWidgetNextReloadDate(now: now) {
+                return .after(reloadAt)
+            }
             switch phase {
             case .armedWaitingLongPress:
-                return .after(Date().addingTimeInterval(1))
+                return .after(now.addingTimeInterval(1))
             case .cooldown:
-                return .after(Date().addingTimeInterval(15))
+                return .after(now.addingTimeInterval(15))
             default:
-                return entry.isLinked ? .never : .after(Date().addingTimeInterval(15))
+                return entry.isLinked ? .never : .after(now.addingTimeInterval(15))
             }
         }()
         completion(Timeline(entries: [entry], policy: policy))
@@ -642,7 +646,6 @@ struct EmergencyTopDownKeycapView: View {
     private var hintText: String? {
         switch phase {
         case .counting(let current, let required):
-            guard current > 0 else { return nil }
             return "\(current)/\(required)"
         case .armedWaitingLongPress:
             return "확인"

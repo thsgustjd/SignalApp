@@ -3,7 +3,8 @@
  * HTML 안의 mailto 링크를 일괄 갱신합니다.
  */
 (function () {
-  var SUPPORT_EMAIL = "duftlaglehsdmfqjfwk@gmail,com";
+  // AppLegalConfig.supportEmail 과 동일하게 유지
+  var SUPPORT_EMAIL = "duftlaglehsdmfqjfwk@gmail.com";
 
   document.querySelectorAll('a[href^="mailto:"]').forEach(function (anchor) {
     anchor.href = "mailto:" + SUPPORT_EMAIL;

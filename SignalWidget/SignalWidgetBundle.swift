@@ -177,9 +177,9 @@ struct ColdKeycapWidget: Widget {
     var body: some WidgetConfiguration {
         KeycapWidgetFactory.configuration(
             kind: "ColdKeycapWidget",
-            displayName: "추워 키캡",
-            description: "탭해 추워 넛지를 보냅니다.",
-            systemName: "snowflake",
+            displayName: "심심해 키캡",
+            description: "탭해 심심해 넛지를 보냅니다.",
+            systemName: "ellipsis.bubble",
             nudgeType: "cold"
         )
     }
@@ -189,9 +189,9 @@ struct HotKeycapWidget: Widget {
     var body: some WidgetConfiguration {
         KeycapWidgetFactory.configuration(
             kind: "HotKeycapWidget",
-            displayName: "더워 키캡",
-            description: "탭해 더워 넛지를 보냅니다.",
-            systemName: "thermometer.sun.fill",
+            displayName: "퇴근 키캡",
+            description: "탭해 퇴근 넛지를 보냅니다.",
+            systemName: "figure.wave",
             nudgeType: "hot"
         )
     }

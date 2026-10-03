@@ -8,7 +8,7 @@ import Foundation
 @MainActor
 final class MainHomeViewModel: ObservableObject {
     @Published private(set) var room: Room
-    let senderNickname: String
+    private(set) var senderNickname: String
 
     @Published var statusMessage: String?
     @Published var isSending = false
@@ -25,6 +25,12 @@ final class MainHomeViewModel: ObservableObject {
         room = updated
     }
 
+    func updateSenderNickname(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        senderNickname = trimmed
+    }
+
     var partnerNickname: String? {
         let name = manager.partnerNickname(in: room)
         return name == "상대방" ? nil : name
@@ -36,6 +42,7 @@ final class MainHomeViewModel: ObservableObject {
         defer { isSending = false }
 
         do {
+            try await HeartWalletService.shared.consumeUsage(action: "emoji")
             _ = try await manager.sendEmojiMessage(
                 roomId: room.id,
                 senderNickname: senderNickname,
@@ -43,7 +50,9 @@ final class MainHomeViewModel: ObservableObject {
             )
             flashStatus("메시지를 보냈어요 ✨")
         } catch {
-            flashStatus(error.localizedDescription)
+            if let message = UserFacingErrorMessage.actionMessage(from: error) {
+                flashStatus(message)
+            }
         }
     }
 
@@ -59,6 +68,7 @@ final class MainHomeViewModel: ObservableObject {
         }
 
         do {
+            try await HeartWalletService.shared.consumeUsage(action: "photo")
             let message = try await manager.sendPhotoMessage(
                 roomId: room.id,
                 senderNickname: senderNickname,
@@ -67,7 +77,9 @@ final class MainHomeViewModel: ObservableObject {
             flashStatus("사진을 보냈어요 📸")
             return message
         } catch {
-            flashStatus(error.localizedDescription)
+            if let message = UserFacingErrorMessage.actionMessage(from: error) {
+                flashStatus(message)
+            }
             print("❌ [Photo] send 실패: \(error)")
             return nil
         }
@@ -85,6 +97,7 @@ final class MainHomeViewModel: ObservableObject {
         }
 
         do {
+            try await HeartWalletService.shared.consumeUsage(action: "drawing")
             let message = try await manager.sendDrawingMessage(
                 roomId: room.id,
                 senderNickname: senderNickname,
@@ -93,7 +106,9 @@ final class MainHomeViewModel: ObservableObject {
             flashStatus("그림을 보냈어요 🎨")
             return message
         } catch {
-            flashStatus(error.localizedDescription)
+            if let message = UserFacingErrorMessage.actionMessage(from: error) {
+                flashStatus(message)
+            }
             return nil
         }
     }
@@ -113,42 +128,85 @@ final class MainHomeViewModel: ObservableObject {
     }
 
     @discardableResult
-    func sendKeycap(_ symbolKey: String) async -> MediaMessage? {
+    func sendKeycap(_ symbolKey: String, bipbiBonus: String? = nil) async -> MediaMessage? {
+        if isSending, let bipbiBonus {
+            return await sendKeycapNudgeContent(bipbiBonus, flashOnSuccess: true)
+        }
+
         guard !isSending else { return nil }
         isSending = true
         defer { isSending = false }
 
         do {
-            let text = AppGroupStorage.getMessage(for: symbolKey)
-            let message = try await manager.sendKeycapNudge(
+            try await HeartWalletService.shared.consumeUsage(action: "keycap")
+            let docTrigger = AppGroupStorage.normalizedKeycapType("doc")
+            let key = AppGroupStorage.normalizedKeycapType(symbolKey)
+            // 삐삐 코드 완성(📞): 일반 키캡 INSERT는 유지, 상대 푸시는 bipbi 보너스 1회만 (뭐해?·사랑해 중복 방지).
+            let suppressPrimaryPush = key == docTrigger && bipbiBonus != nil
+
+            var last = try await manager.sendKeycapNudge(
                 roomId: room.id,
                 senderNickname: senderNickname,
-                symbolKey: symbolKey
+                symbolKey: symbolKey,
+                notifyPartner: !suppressPrimaryPush
             )
-            flashStatus(text)
-            return message
+            if let last {
+                flashKeycapSent(last)
+            }
+            if let bipbiBonus {
+                let bonusMessage = try await manager.sendKeycapNudgeContent(
+                    roomId: room.id,
+                    senderNickname: senderNickname,
+                    content: bipbiBonus,
+                    notifyPartner: true
+                )
+                last = bonusMessage
+                flashKeycapSent(bonusMessage)
+            }
+            return last
         } catch {
-            flashStatus(error.localizedDescription)
+            if let message = UserFacingErrorMessage.actionMessage(from: error) {
+                flashStatus(message)
+            }
             return nil
         }
     }
 
     @discardableResult
-    func sendEmergency() async -> MediaMessage? {
-        guard !isSending else { return nil }
-        isSending = true
-        defer { isSending = false }
-
+    private func sendKeycapNudgeContent(_ content: String, flashOnSuccess: Bool) async -> MediaMessage? {
         do {
-            let message = try await manager.sendEmergencyNudge(
+            let message = try await manager.sendKeycapNudgeContent(
                 roomId: room.id,
-                senderNickname: senderNickname
+                senderNickname: senderNickname,
+                content: content
             )
-            flashStatus("🚨 비상 알림을 보냈어요")
+            if flashOnSuccess {
+                flashKeycapSent(message)
+            }
             return message
         } catch {
-            flashStatus(error.localizedDescription)
+            if let message = UserFacingErrorMessage.actionMessage(from: error) {
+                flashStatus(message)
+            }
             return nil
         }
     }
+
+    private func flashKeycapSent(_ message: MediaMessage) {
+        let flash = AppGroupStorage.keycapDisplayText(fromNudgeContent: message.content)
+        let diaryKey = AppGroupStorage.keycapDiarySymbolKey(fromNudgeContent: message.content) ?? "nil"
+        print(
+            """
+            📊 [KeycapDiary] sent OK type=\(message.type) id=\(message.id) \
+            sender_id=\(message.senderId) diaryKey=\(diaryKey) content=\(message.content ?? "nil")
+            """
+        )
+        NotificationCenter.default.post(
+            name: .keycapDiaryShouldReload,
+            object: room.id,
+            userInfo: [KeycapDiaryReloadKeys.message: message]
+        )
+        flashStatus(flash)
+    }
+
 }

@@ -1,11 +1,11 @@
 :root {
   color-scheme: light;
-  --bg: #f7f4fb;
+  --bg: #eef6fc;
   --card: #ffffff;
-  --text: #1a1a1f;
-  --muted: #5c5c66;
-  --accent: #7b6cf6;
-  --border: rgba(123, 108, 246, 0.2);
+  --text: #000000;
+  --muted: #000000;
+  --accent: #0d52b8;
+  --border: #000000;
 }
 
 * {
@@ -17,7 +17,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   line-height: 1.65;
   color: var(--text);
-  background: linear-gradient(180deg, #fdfbff 0%, var(--bg) 40%, #eef6ff 100%);
+  background: linear-gradient(180deg, #f8fcff 0%, var(--bg) 40%, #e8f4fc 100%);
   min-height: 100vh;
 }
 
@@ -58,7 +58,7 @@ h1 {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 1.5rem 1.35rem 2rem;
-  box-shadow: 0 8px 32px rgba(90, 70, 160, 0.08);
+  box-shadow: 0 8px 32px rgba(70, 130, 180, 0.08);
   margin-bottom: 2rem;
 }
 
@@ -86,7 +86,7 @@ h1 {
 
 .content code {
   font-size: 0.85em;
-  background: #f0eef8;
+  background: #e8f2fa;
   padding: 0.1em 0.35em;
   border-radius: 4px;
 }
@@ -125,7 +125,7 @@ a {
   text-decoration: none;
   color: var(--text);
   font-weight: 600;
-  box-shadow: 0 4px 16px rgba(90, 70, 160, 0.06);
+  box-shadow: 0 4px 16px rgba(70, 130, 180, 0.06);
 }
 
 .card-list a span {

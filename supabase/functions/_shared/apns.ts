@@ -43,11 +43,14 @@ export function buildSignalApnsPayload(input: BuildSignalApnsPayloadInput): Reco
   const title = nonEmpty(input.alert.title, "새 메시지");
   const body = nonEmpty(input.alert.body, "메시지가 도착했어요");
   const isEmergency = input.messageType === "emergency";
+  const trimmedContent = input.content?.trim() ?? "";
+  const isBipbiNudge =
+    input.messageType === "nudge" && trimmedContent.startsWith("bipbi|");
 
   const payload: Record<string, unknown> = {
     aps: {
       alert: { title, body },
-      sound: "default",
+      sound: isBipbiNudge ? "bippibippisound.wav" : "default",
       "thread-id": input.roomId,
       category,
       ...(isEmergency ? { "interruption-level": "time-sensitive" } : {}),

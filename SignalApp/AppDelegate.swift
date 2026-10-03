@@ -15,7 +15,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         UNUserNotificationCenter.current().delegate = self
         PushNotificationCategories.registerIfNeeded()
         PushNotificationAppIconDiagnostics.logMainBundleIconMetadata()
+        AppAudioSession.configureForInAppSounds()
         KeycapPressFeedback.prepare()
+        BipbiIncomingSound.prepare()
 
         if let remote = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
             Task { @MainActor in
@@ -31,7 +33,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
+        AppAudioSession.configureForInAppSounds()
         KeycapPressFeedback.prepare()
+        BipbiIncomingSound.prepare()
         Task {
             await PushNotificationManager.refreshRegistrationAndSyncToken()
         }
@@ -88,8 +92,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             return
         }
 
+        let pushContent = userInfo["content"] as? String
         if isEmergencyPush {
             IncomingHapticFeedback.playEmergencyAlarm()
+        } else if BipbiPagerEasterEgg.isBipbiNudgeContent(pushContent) {
+            BipbiIncomingSound.play()
         } else {
             IncomingHapticFeedback.playKeycapTap()
         }
@@ -98,7 +105,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             PushNotificationRouter.shared.handleForegroundPresentation(userInfo: userInfo)
         }
 
-        completionHandler([.banner, .sound, .badge])
+        if BipbiPagerEasterEgg.isBipbiNudgeContent(pushContent) {
+            completionHandler([.banner, .badge])
+        } else {
+            completionHandler([.banner, .sound, .badge])
+        }
     }
 
     func userNotificationCenter(

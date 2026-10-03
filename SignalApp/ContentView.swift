@@ -11,9 +11,10 @@ enum HomeNavigationRoute: Hashable {
 
 struct ContentView: View {
     @EnvironmentObject private var pushRouter: PushNotificationRouter
+    @EnvironmentObject private var authSession: AuthSessionManager
     @State private var rooms: [Room] = []
     @State private var navigationPath: [HomeNavigationRoute] = []
-    @State private var nickname = ""
+    @State private var showProfileNameSetup = false
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var widgetTargetRoomId: UUID?
@@ -21,17 +22,35 @@ struct ContentView: View {
     private let manager = SupabaseManager.shared
 
     var body: some View {
+        Group {
+            switch authSession.phase {
+            case .loading:
+                ProgressView("로그인 확인 중…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .signedOut:
+                SignInView()
+            case .signedIn:
+                signedInHome
+            }
+        }
+        .preferredColorScheme(.light)
+    }
+
+    private var signedInHome: some View {
         NavigationStack(path: $navigationPath) {
             HomeDashboardView(
                 rooms: $rooms,
-                nickname: $nickname,
                 widgetTargetRoomId: $widgetTargetRoomId,
                 isLoading: isLoading,
                 errorMessage: errorMessage,
                 onRefresh: { await reloadRooms() },
                 onOpenRoom: { room in openRoom(room) },
-                onCreateRoom: { await createRoom() },
-                onJoinRoom: { code in await joinRoom(code: code) },
+                onCreateRoom: {
+                    try await createRoom()
+                },
+                onJoinRoom: { code in
+                    try await joinRoom(code: code)
+                },
                 onDeleteWaitingRoom: { room in await deleteWaitingRoom(room) },
                 onAccountDeleted: {
                     navigationPath.removeAll()
@@ -45,14 +64,19 @@ struct ContentView: View {
                 }
             }
         }
-        .preferredColorScheme(.light)
         .task {
+            manager.restoreDeviceUserIdFromAuthMetadataIfAvailable()
             _ = manager.currentUserId
-            if let saved = manager.savedNickname {
-                nickname = saved
-            }
+            showProfileNameSetup = !ProfileDisplayNameStore.hasValid
             loadWidgetTargetFromStorage()
             await reloadRooms()
+            await HeartWalletService.shared.refresh()
+        }
+        .sheet(isPresented: $showProfileNameSetup) {
+            ProfileDisplayNameSetupView {
+                showProfileNameSetup = false
+                Task { await reloadRooms() }
+            }
         }
         .onChange(of: widgetTargetRoomId) { _, newValue in
             if let id = newValue {
@@ -74,10 +98,10 @@ struct ContentView: View {
         if let mine = manager.myNickname(in: room) {
             return mine
         }
-        if NicknameValidator.isValid(nickname) {
-            return nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let profile = ProfileDisplayNameStore.saved, NicknameValidator.isValid(profile) {
+            return profile
         }
-        return manager.savedNickname ?? "me"
+        return "me"
     }
 
     private func openRoom(_ room: Room) {
@@ -131,6 +155,7 @@ struct ContentView: View {
     private func exitChatRoom(roomId: UUID) async {
         if let room = rooms.first(where: { $0.id == roomId }) {
             try? await manager.leaveRoom(room)
+            RoomPinStorage.removePin(for: room.id)
             await reloadRooms()
         }
         popNavigationRoute()
@@ -147,6 +172,7 @@ struct ContentView: View {
         defer { isLoading = false }
         do {
             try await manager.deleteWaitingRoom(id: room.id)
+            RoomPinStorage.removePin(for: room.id)
             navigationPath.removeAll { route in
                 if case .chatRoom(let id) = route { return id == room.id }
                 return false
@@ -156,7 +182,7 @@ struct ContentView: View {
             }
             await reloadRooms()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingErrorMessage.actionMessage(from: error)
         }
     }
 
@@ -175,44 +201,28 @@ struct ContentView: View {
             }
             manager.refreshWidgetTimelines()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingErrorMessage.loadMessage(from: error)
         }
     }
 
     @MainActor
-    private func createRoom() async {
-        guard NicknameValidator.canSubmit(nickname) else {
-            errorMessage = "닉네임을 먼저 입력해 주세요."
-            return
-        }
+    private func createRoom() async throws {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
-        do {
-            let created = try await manager.createRoom(nickname: nickname)
-            await reloadRooms()
-            openRoom(created)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        let created = try await manager.createRoom()
+        await reloadRooms()
+        openRoom(created)
     }
 
     @MainActor
-    private func joinRoom(code: String) async {
-        guard NicknameValidator.canSubmit(nickname) else {
-            errorMessage = "닉네임을 먼저 입력해 주세요."
-            return
-        }
+    private func joinRoom(code: String) async throws {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
-        do {
-            let joined = try await manager.joinRoom(code: code, nickname: nickname)
-            await reloadRooms()
-            openRoom(joined)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        let joined = try await manager.joinRoom(code: code)
+        await reloadRooms()
+        openRoom(joined)
     }
 }
 

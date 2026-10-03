@@ -51,6 +51,8 @@ private struct RoomMemberNamePatch: Encodable {
 
 extension SupabaseManager {
     static let roomMaxMembers = 5
+    /// 한 사용자가 동시에 참여할 수 있는 서로 다른 방 수.
+    static let userMaxJoinedRooms = 5
 
     func activeMemberCount(for room: Room) -> Int {
         if !room.members.isEmpty { return room.members.count }
@@ -70,6 +72,66 @@ extension SupabaseManager {
 
     func memberCountLabel(for room: Room) -> String {
         "\(activeMemberCount(for: room))/\(memberCapacity(for: room))명"
+    }
+
+    func normalizedRoomDisplayName(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func member(matchingDisplayName nickname: String, in room: Room) -> RoomMember? {
+        let nick = normalizedRoomDisplayName(nickname)
+        guard !nick.isEmpty else { return nil }
+        return room.members.first { normalizedRoomDisplayName($0.displayName) == nick }
+    }
+
+    /// 초대 코드만 맞으면 멤버로 들어갑니다 (닉네임·재입장 매칭 없음).
+    func ensureJoinedRoom(_ existing: Room) async throws -> Room {
+        try await bootstrapMembershipIfNeeded(for: existing)
+        var room = try await refreshRoom(id: existing.id)
+
+        if isCurrentUserMember(of: room) {
+            return room
+        }
+
+        try await assertCanJoinAdditionalRoom()
+
+        if activeMemberCount(for: room) >= memberCapacity(for: room) {
+            throw SupabaseManagerError.roomAlreadyFull
+        }
+
+        let displayName = defaultMemberDisplayName()
+        try await insertMember(roomId: room.id, userId: currentUserId, displayName: displayName)
+
+        let members = try await fetchMembers(roomId: room.id)
+        if members.count == 2, isUser2SlotEmpty(in: room) {
+            _ = try? await client
+                .from("rooms")
+                .update(JoinRoomPayload(user2Id: currentUserId, user2Name: displayName), returning: .minimal)
+                .eq("id", value: room.id)
+                .execute()
+        }
+
+        return try await refreshRoom(id: room.id)
+    }
+
+    /// 같은 방(`room`) 안에서 닉네임 중복 여부. `excludingMemberId`는 본인 멤버 row 이름 변경 시 제외.
+    func isDisplayNameTaken(in room: Room, displayName: String, excludingMemberId: UUID? = nil) -> Bool {
+        let nick = normalizedRoomDisplayName(displayName)
+        guard !nick.isEmpty else { return false }
+
+        if room.members.contains(where: { member in
+            if member.id == excludingMemberId { return false }
+            return normalizedRoomDisplayName(member.displayName) == nick
+        }) {
+            return true
+        }
+
+        if room.members.isEmpty {
+            if nick == normalizedRoomDisplayName(room.user1Name ?? "") { return true }
+            if nick == normalizedRoomDisplayName(room.user2Name ?? "") { return true }
+        }
+
+        return false
     }
 
     func recipientUserIds(in room: Room, excluding senderId: String) -> [String] {
@@ -106,6 +168,49 @@ extension SupabaseManager {
             return name
         }
         return nil
+    }
+
+    /// 채팅방 제목용 — 참가자 전원 표시 이름 (본인 포함, ` · 나` 없음).
+    func allParticipantDisplayNames(in room: Room) -> [String] {
+        if !room.members.isEmpty {
+            return room.members.compactMap { member in
+                let trimmed = member.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : trimmed
+            }
+        }
+        var names: [String] = []
+        if let n1 = room.user1Name?.trimmingCharacters(in: .whitespacesAndNewlines), !n1.isEmpty {
+            names.append(n1)
+        }
+        if let n2 = room.user2Name?.trimmingCharacters(in: .whitespacesAndNewlines), !n2.isEmpty {
+            names.append(n2)
+        }
+        return names
+    }
+
+    /// 채팅방 상단 「참여 중」 목록용 (본인 포함).
+    func participantDisplayLabels(in room: Room) -> [String] {
+        let myId = currentUserId
+        if !room.members.isEmpty {
+            return room.members.map { member in
+                let trimmed = member.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let name = trimmed.isEmpty ? "member" : trimmed
+                if DeviceUserId.matches(member.userId, myId) {
+                    return "\(name) · 나"
+                }
+                return name
+            }
+        }
+        var labels: [String] = []
+        if let n1 = room.user1Name?.trimmingCharacters(in: .whitespacesAndNewlines), !n1.isEmpty {
+            labels.append(DeviceUserId.matches(room.user1Id, myId) ? "\(n1) · 나" : n1)
+        }
+        if let user2 = room.user2Id,
+           let n2 = room.user2Name?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !n2.isEmpty {
+            labels.append(DeviceUserId.matches(user2, myId) ? "\(n2) · 나" : n2)
+        }
+        return labels
     }
 
     func otherMemberDisplayNames(in room: Room) -> [String] {
@@ -226,71 +331,16 @@ extension SupabaseManager {
             .execute()
     }
 
-    func joinRoomMembers(existing: Room, nickname: String) async throws -> Room {
-        let room = try await hydrateRoom(existing)
-
-        if let member = room.members.first(where: { DeviceUserId.matches($0.userId, currentUserId) }) {
-            if member.displayName != nickname {
-                try await updateMemberDisplayName(memberId: member.id, displayName: nickname)
-            }
-            return try await refreshRoom(id: room.id)
-        }
-
-        if let memberByName = room.members.first(where: { $0.displayName == nickname }) {
-            try await updateMemberUserId(memberId: memberByName.id, userId: currentUserId)
-            return try await refreshRoom(id: room.id)
-        }
-
-        guard activeMemberCount(for: room) < memberCapacity(for: room) else {
-            throw SupabaseManagerError.roomAlreadyFull
-        }
-
-        try await insertMember(roomId: room.id, userId: currentUserId, displayName: nickname)
-
-        let members = try await fetchMembers(roomId: room.id)
-        if members.count == 2, isUser2SlotEmpty(in: room) {
-            _ = try? await client
-                .from("rooms")
-                .update(JoinRoomPayload(user2Id: currentUserId, user2Name: nickname), returning: .minimal)
-                .eq("id", value: room.id)
-                .execute()
-        }
-
-        return try await refreshRoom(id: room.id)
-    }
-
     func updateMyMemberDisplayName(in room: Room, nickname: String) async throws {
         let myId = currentUserId
         guard let member = room.members.first(where: { DeviceUserId.matches($0.userId, myId) }) else { return }
-        guard member.displayName != nickname else { return }
-        try await updateMemberDisplayName(memberId: member.id, displayName: nickname)
+        let trimmed = normalizedRoomDisplayName(nickname)
+        guard normalizedRoomDisplayName(member.displayName) != trimmed else { return }
+        try await updateMemberDisplayName(memberId: member.id, displayName: trimmed)
     }
 
     func addCreatorMember(room: Room, nickname: String) async throws {
         try await insertMember(roomId: room.id, userId: currentUserId, displayName: nickname)
-    }
-
-    func alignMemberUserIdIfNeeded(_ room: Room) async throws -> Room {
-        try await bootstrapMembershipIfNeeded(for: room)
-        var hydrated = try await hydrateRoom(room)
-        if isCurrentUserMember(of: hydrated) { return hydrated }
-
-        guard let nick = savedNickname?.trimmingCharacters(in: .whitespacesAndNewlines), !nick.isEmpty else {
-            return hydrated
-        }
-
-        if let member = hydrated.members.first(where: { $0.displayName == nick }) {
-            try await updateMemberUserId(memberId: member.id, userId: currentUserId)
-            return try await refreshRoom(id: room.id)
-        }
-
-        if hydrated.user1Name == nick {
-            let updated = try await rejoinAsUser1(existing: hydrated)
-            try await backfillMembersFromLegacyRoom(updated)
-            return try await refreshRoom(id: room.id)
-        }
-
-        return hydrated
     }
 
     func fetchRoomIdsForCurrentUser() async -> [UUID] {
@@ -307,7 +357,9 @@ extension SupabaseManager {
                     .limit(50)
                     .execute()
                     .value
-                for row in rows { ids.insert(row.roomId) }
+                for row in rows where DeviceUserId.matches(row.userId, userId) {
+                    ids.insert(row.roomId)
+                }
             } catch {
                 print("⚠️ [RoomMembers] list by user_id failed: \(error.localizedDescription)")
             }

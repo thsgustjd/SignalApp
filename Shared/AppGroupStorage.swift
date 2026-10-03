@@ -18,6 +18,8 @@ enum AppGroupStorage {
         static let lastWidgetHeartSentAt = "lastWidgetHeartSentAt"
         static let widgetHeartTapCount = "widgetHeartTapCount"
         static let keycapCustomMessages = "keycapCustomMessages"
+        static let keycapCustomTitles = "keycapCustomTitles"
+        static let keycapCustomEmojis = "keycapCustomEmojis"
         static let isSignalDNDActive = "isSignalDNDActive"
         static let emergencyTapCount = "emergencyTapCount"
         static let emergencyLastTapAt = "emergencyLastTapAt"
@@ -49,15 +51,25 @@ enum AppGroupStorage {
         "doc": "전화 해줘",
         "tired": "피곤해",
         "hungry": "배고파",
-        "cold": "추워",
-        "hot": "더워",
+        "cold": "심심해",
+        "hot": "퇴근",
         "play": "놀자"
     ]
 
     static let keycapNudgeTypeOrder: [String] = [
         "heart", "pleading", "tongue", "question", "play", "angry", "sleep", "grin", "clover",
-        "pencil", "doc", "tired", "hungry", "cold", "hot"
+        "pencil", "hungry", "tired", "cold", "doc", "hot"
     ]
+
+    /// 1~15번 중 **13~15번** (cold, doc, hot) — 이모지·표시 이름 사용자 커스텀.
+    static var keycapUserCustomizableTypes: [String] {
+        guard keycapNudgeTypeOrder.count >= 15 else { return [] }
+        return Array(keycapNudgeTypeOrder.suffix(3))
+    }
+
+    static func isUserCustomizableKeycap(_ type: String) -> Bool {
+        keycapUserCustomizableTypes.contains(normalizedKeycapType(type))
+    }
 
     private static let removedKeycapTypes: Set<String> = ["star", "meal", "yummy", "camera", "sleepy"]
 
@@ -75,10 +87,13 @@ enum AppGroupStorage {
         "일하는중 화이팅!": "doc",
         "피곤해?": "tired",
         "좋은 하루 보내": "clover",
+        "추워": "cold",
+        "더워": "hot",
     ]
 
     static func normalizedKeycapType(_ raw: String) -> String {
-        legacyKeycapTypeMap[raw] ?? raw
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return legacyKeycapTypeMap[trimmed] ?? trimmed
     }
 
     static func isActiveKeycapType(_ type: String) -> Bool {
@@ -87,7 +102,17 @@ enum AppGroupStorage {
 
     /// 이모지 각인 키캡이면 이모지 문자열, SF Symbol 키캡이면 nil.
     static func keycapEmoji(for nudgeType: String) -> String? {
-        switch normalizedKeycapType(nudgeType) {
+        let type = normalizedKeycapType(nudgeType)
+        if isUserCustomizableKeycap(type),
+           let custom = loadCustomKeycapEmojis()[type]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !custom.isEmpty {
+            return custom
+        }
+        return defaultKeycapEmoji(for: type)
+    }
+
+    static func defaultKeycapEmoji(for type: String) -> String? {
+        switch normalizedKeycapType(type) {
         case "pleading": return "🥺"
         case "tongue": return "😝"
         case "angry": return "😠"
@@ -98,12 +123,50 @@ enum AppGroupStorage {
         case "doc": return "📞"
         case "tired": return "🥱"
         case "hungry": return "😩"
-        case "cold": return "😬"
-        case "hot": return "🥵"
+        case "cold": return "😕"
+        case "hot": return "🤗"
         case "play": return "😆"
         case "question": return "👀"
         default: return nil
         }
+    }
+
+    /// 설정·채팅 그리드용 표시 이름 (13~15번 cold·doc·hot 은 사용자 저장값 우선).
+    static func displayTitle(for type: String) -> String {
+        let key = normalizedKeycapType(type)
+        if isUserCustomizableKeycap(key),
+           let custom = loadCustomKeycapTitles()[key]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !custom.isEmpty {
+            return custom
+        }
+        return defaultDisplayTitle(for: key)
+    }
+
+    static func defaultDisplayTitle(for type: String) -> String {
+        switch normalizedKeycapType(type) {
+        case "heart": return "사랑해 키캡"
+        case "pleading": return "보고싶어 키캡"
+        case "tongue": return "메롱 키캡"
+        case "question": return "뭐해 키캡"
+        case "play": return "놀자 키캡"
+        case "angry": return "그만해라 키캡"
+        case "sleep": return "잘자 키캡"
+        case "grin": return "굿모닝 키캡"
+        case "clover": return "흥! 키캡"
+        case "pencil": return "연락 봐줘"
+        case "doc": return "전화 해줘"
+        case "tired": return "피곤해"
+        case "hungry": return "배고파 키캡"
+        case "cold": return "심심해 키캡"
+        case "hot": return "퇴근 키캡"
+        default: return type
+        }
+    }
+
+    static func sanitizeSingleEmojiInput(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let first = trimmed.first else { return "" }
+        return String(first)
     }
 
     /// 위젯 전송 Intent 등에서 사용 — 커스텀 저장값 우선, 없으면 기본 문구.
@@ -169,6 +232,98 @@ enum AppGroupStorage {
         flush(defaults)
     }
 
+    static func keycapTitlesForEditing() -> [String: String] {
+        let saved = loadCustomKeycapTitles()
+        var merged: [String: String] = [:]
+        for key in keycapUserCustomizableTypes {
+            merged[key] = saved[key] ?? defaultDisplayTitle(for: key)
+        }
+        return merged
+    }
+
+    static func keycapEmojisForEditing() -> [String: String] {
+        let saved = loadCustomKeycapEmojis()
+        var merged: [String: String] = [:]
+        for key in keycapUserCustomizableTypes {
+            merged[key] = saved[key] ?? defaultKeycapEmoji(for: key) ?? "⌨️"
+        }
+        return merged
+    }
+
+    static func saveKeycapAppearances(titles: [String: String], emojis: [String: String]) {
+        guard let defaults else { return }
+
+        var titlePayload: [String: String] = [:]
+        var emojiPayload: [String: String] = [:]
+
+        for key in keycapUserCustomizableTypes {
+            let titleTrim = titles[key]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !titleTrim.isEmpty, titleTrim != defaultDisplayTitle(for: key) {
+                titlePayload[key] = titleTrim
+            }
+
+            let emojiTrim = sanitizeSingleEmojiInput(emojis[key] ?? "")
+            let defaultEmoji = defaultKeycapEmoji(for: key) ?? ""
+            if !emojiTrim.isEmpty, emojiTrim != defaultEmoji {
+                emojiPayload[key] = emojiTrim
+            }
+        }
+
+        if titlePayload.isEmpty {
+            defaults.removeObject(forKey: Keys.keycapCustomTitles)
+        } else if let data = try? JSONEncoder().encode(titlePayload) {
+            defaults.set(data, forKey: Keys.keycapCustomTitles)
+        }
+
+        if emojiPayload.isEmpty {
+            defaults.removeObject(forKey: Keys.keycapCustomEmojis)
+        } else if let data = try? JSONEncoder().encode(emojiPayload) {
+            defaults.set(data, forKey: Keys.keycapCustomEmojis)
+        }
+
+        flush(defaults)
+    }
+
+    static func resetKeycapAppearance(for type: String) {
+        guard isUserCustomizableKeycap(type), let defaults else { return }
+        let key = normalizedKeycapType(type)
+
+        var titles = loadCustomKeycapTitles()
+        titles.removeValue(forKey: key)
+        if titles.isEmpty {
+            defaults.removeObject(forKey: Keys.keycapCustomTitles)
+        } else if let data = try? JSONEncoder().encode(titles) {
+            defaults.set(data, forKey: Keys.keycapCustomTitles)
+        }
+
+        var emojis = loadCustomKeycapEmojis()
+        emojis.removeValue(forKey: key)
+        if emojis.isEmpty {
+            defaults.removeObject(forKey: Keys.keycapCustomEmojis)
+        } else if let data = try? JSONEncoder().encode(emojis) {
+            defaults.set(data, forKey: Keys.keycapCustomEmojis)
+        }
+
+        flush(defaults)
+    }
+
+    private static func loadCustomKeycapTitles() -> [String: String] {
+        loadStringDictionary(forKey: Keys.keycapCustomTitles)
+    }
+
+    private static func loadCustomKeycapEmojis() -> [String: String] {
+        loadStringDictionary(forKey: Keys.keycapCustomEmojis)
+    }
+
+    private static func loadStringDictionary(forKey key: String) -> [String: String] {
+        guard let defaults,
+              let data = defaults.data(forKey: key),
+              let decoded = try? JSONDecoder().decode([String: String].self, from: data) else {
+            return [:]
+        }
+        return decoded
+    }
+
     private static func loadCustomKeycapMessages() -> [String: String] {
         guard let defaults,
               let data = defaults.data(forKey: Keys.keycapCustomMessages),
@@ -178,11 +333,125 @@ enum AppGroupStorage {
         return decoded
     }
 
-    /// 넛지 `content`에서 키캡 심볼 키 추출 (`star|문구`, 레거시 `star`, 문구 매칭).
+    /// 키캡 1회 전송 INSERT용 — `heart|사랑해` (다이어리·표시·역매칭).
+    static func storedContent(forKeycapNudge symbolKey: String, messageText: String) -> String {
+        let key = normalizedKeycapType(symbolKey)
+        let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return "\(key)|\(text)"
+    }
+
+    /// INSERT 직전 — `symbolKey|문구` 포맷 보장 (레거시 `❤️` 단독 저장 방지).
+    static func canonicalKeycapNudgeInsertContent(_ raw: String, symbolKey: String? = nil) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            let fallbackKey = resolvedActiveSymbolKey(symbolKey) ?? "heart"
+            return storedContent(forKeycapNudge: fallbackKey, messageText: getMessage(for: fallbackKey))
+        }
+        if BipbiPagerEasterEgg.isBipbiNudgeContent(trimmed) { return trimmed }
+
+        if let symbolKey, let key = resolvedActiveSymbolKey(symbolKey) {
+            let text = messageTextForKeycapInsert(raw: trimmed, symbolKey: key)
+            return storedContent(forKeycapNudge: key, messageText: text)
+        }
+
+        if let pipe = trimmed.firstIndex(of: "|") {
+            let key = normalizedKeycapType(String(trimmed[..<pipe]))
+            if isActiveKeycapType(key) {
+                let suffix = String(trimmed[trimmed.index(after: pipe)...])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let text = suffix.isEmpty ? getMessage(for: key) : suffix
+                return storedContent(forKeycapNudge: key, messageText: text)
+            }
+        }
+
+        if let inferred = keycapDiarySymbolKey(fromNudgeContent: trimmed)
+            ?? keycapSymbolKeyMatchingBareEmoji(trimmed) {
+            let text = messageTextForKeycapInsert(raw: trimmed, symbolKey: inferred)
+            return storedContent(forKeycapNudge: inferred, messageText: text)
+        }
+
+        return storedContent(forKeycapNudge: "heart", messageText: trimmed)
+    }
+
+    private static func resolvedActiveSymbolKey(_ symbolKey: String?) -> String? {
+        guard let symbolKey else { return nil }
+        let key = normalizedKeycapType(symbolKey)
+        return isActiveKeycapType(key) ? key : nil
+    }
+
+    private static func messageTextForKeycapInsert(raw: String, symbolKey: String) -> String {
+        let key = normalizedKeycapType(symbolKey)
+        if keycapSymbolKeyMatchingBareEmoji(raw) == key {
+            return getMessage(for: key)
+        }
+        if defaultKeycapMessages[key] == raw || getCustomMessage(for: key) == raw {
+            return raw
+        }
+        if let pipe = raw.firstIndex(of: "|") {
+            let suffix = String(raw[raw.index(after: pipe)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !suffix.isEmpty { return suffix }
+        }
+        return raw.isEmpty ? getMessage(for: key) : raw
+    }
+
+    /// 이모지 비교 — variation selector( FE0F )·공백 차이 무시.
+    static func keycapEmojiMatchToken(_ raw: String) -> String {
+        raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .unicodeScalars
+            .filter { $0.value != 0xFE0F }
+            .map { String($0) }
+            .joined()
+    }
+
+    private static func keycapEmojisMatch(_ lhs: String, _ rhs: String) -> Bool {
+        keycapEmojiMatchToken(lhs) == keycapEmojiMatchToken(rhs)
+    }
+
+    /// 레거시 DB — `content`가 키캡 이모지(`❤️`, `🥺` 등)만 있는 경우.
+    static func keycapSymbolKeyMatchingBareEmoji(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        for key in keycapNudgeTypeOrder {
+            if let emoji = keycapEmoji(for: key), keycapEmojisMatch(emoji, trimmed) { return key }
+        }
+        if keycapEmojisMatch(trimmed, keycapSymbolPresentation(for: "heart").emoji) { return "heart" }
+        return nil
+    }
+
+    /// 다이어리 키캡 횟수 집계 대상 (`nudge` + 레거시 `emoji` 단독 이모지).
+    static func isKeycapDiaryCountableMessage(type: String, content: String?) -> Bool {
+        if type == emergencyNudgeType { return false }
+        guard type == "nudge" || type == "emoji" else { return false }
+        return keycapDiarySymbolKey(fromNudgeContent: content) != nil
+    }
+
+    /// 다이어리 집계용 — `heart|문구`·레거시 문구. 삐삐(`bipbi|`) 제외.
+    static func keycapDiarySymbolKey(fromNudgeContent content: String?) -> String? {
+        guard let raw = content?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+            return nil
+        }
+        if BipbiPagerEasterEgg.isBipbiNudgeContent(raw) { return nil }
+
+        if let pipe = raw.firstIndex(of: "|") {
+            let key = normalizedKeycapType(String(raw[..<pipe]))
+            if isActiveKeycapType(key) { return key }
+        }
+
+        for key in keycapNudgeTypeOrder {
+            if defaultKeycapMessages[key] == raw { return key }
+            if getCustomMessage(for: key) == raw { return key }
+        }
+        if let legacy = legacyDefaultMessageToKey[raw] { return legacy }
+        if let emojiKey = keycapSymbolKeyMatchingBareEmoji(raw) { return emojiKey }
+        return keycapSymbolKey(fromNudgeContent: raw)
+    }
+
+    /// 넛지 `content`에서 키캡 심볼 키 추출 (`heart|문구`, 레거시 `star`, 문구 매칭).
     static func keycapSymbolKey(fromNudgeContent content: String?) -> String? {
         guard let raw = content?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
             return nil
         }
+        if BipbiPagerEasterEgg.isBipbiNudgeContent(raw) { return nil }
         if let pipe = raw.firstIndex(of: "|") {
             let key = normalizedKeycapType(String(raw[..<pipe]))
             if isActiveKeycapType(key) { return key }
@@ -211,6 +480,9 @@ enum AppGroupStorage {
         guard let raw = content?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
             return "넛지"
         }
+        if let bipbi = BipbiPagerEasterEgg.displayText(fromStoredContent: raw) {
+            return bipbi
+        }
         if let pipe = raw.firstIndex(of: "|") {
             let text = String(raw[raw.index(after: pipe)...])
             if !text.isEmpty { return text }
@@ -228,7 +500,7 @@ enum AppGroupStorage {
         let type = normalizedKeycapType(key)
         guard isActiveKeycapType(type) else { return ("⌨️", "키캡") }
         if let emoji = keycapEmoji(for: type) {
-            return (emoji, shortTitle(for: type, fallback: defaultKeycapMessages[type] ?? type))
+            return (emoji, displayTitle(for: type))
         }
         switch type {
         case "heart": return ("❤️", "사랑해")
@@ -246,8 +518,8 @@ enum AppGroupStorage {
         case "clover": return "흥!"
         case "tired": return "피곤해"
         case "hungry": return "배고파"
-        case "cold": return "추워"
-        case "hot": return "더워"
+        case "cold": return "심심해"
+        case "hot": return "퇴근"
         case "play": return "놀자"
         default: return fallback
         }
@@ -291,6 +563,7 @@ enum AppGroupStorage {
         }
         guard let defaults else { return .counting(current: 0, required: emergencyRequiredTapCount) }
         pruneExpiredEmergencyArm(now: now, defaults: defaults)
+        pruneExpiredEmergencyTapSequence(now: now, defaults: defaults)
 
         if defaults.object(forKey: Keys.emergencyArmedAt) as? Date != nil {
             return .armedWaitingLongPress
@@ -298,6 +571,24 @@ enum AppGroupStorage {
 
         let count = defaults.integer(forKey: Keys.emergencyTapCount)
         return .counting(current: count, required: emergencyRequiredTapCount)
+    }
+
+    /// 위젯 타임라인 — 연타 만료·무장·쿨다운 종료 시점에 UI 갱신.
+    static func emergencyWidgetNextReloadDate(now: Date = Date()) -> Date? {
+        guard let defaults else { return nil }
+        if let last = lastEmergencySentAt,
+           now.timeIntervalSince(last) < emergencySendCooldownSeconds {
+            return last.addingTimeInterval(emergencySendCooldownSeconds)
+        }
+        if let armedAt = defaults.object(forKey: Keys.emergencyArmedAt) as? Date {
+            return armedAt.addingTimeInterval(emergencyArmTimeout)
+        }
+        let count = defaults.integer(forKey: Keys.emergencyTapCount)
+        guard count > 0,
+              let lastTap = defaults.object(forKey: Keys.emergencyLastTapAt) as? Date else {
+            return nil
+        }
+        return lastTap.addingTimeInterval(emergencyTapSequenceWindow)
     }
 
     /// 앱·위젯 공통 — 짧게 누를 때마다 호출 (전송 없음).
@@ -310,6 +601,7 @@ enum AppGroupStorage {
         }
 
         pruneExpiredEmergencyArm(now: now, defaults: defaults)
+        pruneExpiredEmergencyTapSequence(now: now, defaults: defaults)
 
         if defaults.object(forKey: Keys.emergencyArmedAt) as? Date != nil {
             return .armedWaitingLongPress
@@ -380,6 +672,18 @@ enum AppGroupStorage {
             defaults.removeObject(forKey: Keys.emergencyLastTapAt)
             flush(defaults)
         }
+    }
+
+    /// 마지막 탭 후 2초가 지나면 저장된 연타 횟수를 0으로 (위젯 표시 동기화).
+    private static func pruneExpiredEmergencyTapSequence(now: Date, defaults: UserDefaults) {
+        guard defaults.object(forKey: Keys.emergencyArmedAt) == nil else { return }
+        guard let lastTap = defaults.object(forKey: Keys.emergencyLastTapAt) as? Date else { return }
+        let count = defaults.integer(forKey: Keys.emergencyTapCount)
+        guard count > 0 else { return }
+        guard now.timeIntervalSince(lastTap) > emergencyTapSequenceWindow else { return }
+        defaults.set(0, forKey: Keys.emergencyTapCount)
+        defaults.removeObject(forKey: Keys.emergencyLastTapAt)
+        flush(defaults)
     }
 
     static let nudgeCooldownSeconds: TimeInterval = 10

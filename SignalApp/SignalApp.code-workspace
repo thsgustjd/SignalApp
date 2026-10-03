@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": ".."
+		},
+		{
+			"path": "../SignalAppTests"
+		},
+		{
+			"path": "../SignalAppUITests"
+		},
+		{
+			"path": "../SignalWidget"
+		}
+	]
+}

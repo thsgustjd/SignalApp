@@ -12,6 +12,17 @@
 			<string>AppIcon</string>
 		</dict>
 	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.hyunseong.signalapp.auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.hyunseong.signalapp</string>
+			</array>
+		</dict>
+	</array>
 	<key>SignalAppGroupIdentifier</key>
 	<string>group.com.hs.SignalApp</string>
 	<key>SignalHostApplicationBundleIdentifier</key>

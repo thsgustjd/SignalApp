@@ -45,7 +45,11 @@ enum ChatIncomingNotifications {
         guard isEmergency || !AppGroupStorage.isSignalDNDActive else { return }
 
         let content = UNMutableNotificationContent()
-        content.sound = .default
+        if BipbiPagerEasterEgg.isBipbiNudgeContent(message.content) {
+            content.sound = UNNotificationSound(named: UNNotificationSoundName("bippibippisound.wav"))
+        } else {
+            content.sound = .default
+        }
         content.title = RoomPushTitleCache.pushAlertTitle(
             roomId: message.roomId,
             senderNickname: partnerName
@@ -111,7 +115,7 @@ enum NotificationAuthorizationService {
 
         switch settings.authorizationStatus {
         case .denied:
-            print("🔴 [Push] 알림 거부됨 — 설정 → ㄱ.정병키캡 → 알림 허용")
+            print("🔴 [Push] 알림 거부됨 — 설정 → ㄱ.야르렁밤티키캡 → 알림 허용")
         case .authorized, .provisional, .ephemeral:
             print("🟢 [Push] 알림 권한 OK — remote registration 진행")
         default:

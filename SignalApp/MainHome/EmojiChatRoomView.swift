@@ -5,9 +5,7 @@
 
 import SwiftUI
 import UIKit
-import PhotosUI
-
-/// 매칭 후 기본 메인 화면 — 하단 2탭(키캡 전체 / 채팅방) + 사진·손그림 전송.
+/// 매칭 후 기본 메인 화면 — 하단 3탭 + 삐삐(말랑이) 툴바.
 struct ChatRoomView: View {
     let room: Room
     let senderNickname: String
@@ -16,21 +14,16 @@ struct ChatRoomView: View {
     @StateObject private var chatModel: EmojiChatViewModel
     @StateObject private var mediaModel: MainHomeViewModel
     @State private var mainRoomTab: MainRoomTab = .keycaps
-    @State private var showCamera = false
-    @State private var showDrawing = false
     @State private var showInviteCopiedToast = false
-    @State private var isShowingKeycapCustomSheet = false
     @State private var showCalendar = false
-    @State private var showPhotoSourceDialog = false
-    @State private var showPhotosPicker = false
-    @State private var selectedPickerItem: PhotosPickerItem?
-    @State private var isUploadingPhoto = false
     @State private var lightboxURL: URL?
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var pushRouter: PushNotificationRouter
 
     @State private var showSafetyMenu = false
     @State private var reportSheetContext: ReportSheetContext?
+    @State private var showParticipantsList = false
 
     init(room: Room, senderNickname: String, onLeaveRoom: (() -> Void)? = nil) {
         self.room = room
@@ -46,66 +39,21 @@ struct ChatRoomView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            chatRoomTopBar
+
+            ZStack(alignment: .bottom) {
                 mainContent
-                if mainRoomTab == .chatRoom {
-                    chatMediaActionBar
-                }
-                MainRoomTabBar(
-                    selectedTab: $mainRoomTab,
-                    isBusy: mediaModel.isSending || chatModel.isSending || isUploadingPhoto
-                )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                roomBottomChrome
             }
-            .animation(CozyTheme.spring, value: mainRoomTab)
-            .background(CozyTheme.roomBackground.ignoresSafeArea())
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    inviteCodeChip
-                }
-                ToolbarItem(placement: .principal) {
-                    VStack(spacing: 2) {
-                        Text(SupabaseManager.shared.defaultRoomTitle(for: chatModel.room))
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(CozyTheme.textPrimary)
-                            .lineLimit(1)
-                        Text(SupabaseManager.shared.memberCountLabel(for: chatModel.room))
-                            .font(.caption2)
-                            .foregroundStyle(CozyTheme.textSecondary)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 12) {
-                        Button {
-                            isShowingKeycapCustomSheet = true
-                        } label: {
-                            Image(systemName: "keyboard")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(CozyTheme.textPrimary)
-                        }
-                        Button {
-                            showCalendar = true
-                        } label: {
-                            Image(systemName: "calendar")
-                                .foregroundStyle(CozyTheme.textSecondary)
-                        }
-                        Menu {
-                            Button {
-                                showSafetyMenu = true
-                            } label: {
-                                Label("안전 및 데이터", systemImage: "shield")
-                            }
-                            Button(role: .destructive) {
-                                Task { await leaveCurrentRoom() }
-                            } label: {
-                                Label("방 나가기", systemImage: "rectangle.portrait.and.arrow.right")
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                                .foregroundStyle(CozyTheme.textSecondary)
-                        }
-                    }
-                }
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .ignoresSafeArea(edges: .bottom)
+        .animation(CozyTheme.spring, value: mainRoomTab)
+        .background(CozyTheme.roomBackground.ignoresSafeArea())
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .overlay(alignment: .top) {
                 VStack(spacing: 8) {
                     if let nudgeBanner = chatModel.nudgeBannerText {
@@ -119,7 +67,7 @@ struct ChatRoomView: View {
                             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .strokeBorder(CozyTheme.accent.opacity(0.35), lineWidth: 1)
+                                    .strokeBorder(CozyTheme.uiBorder, lineWidth: CozyTheme.uiBorderWidth)
                             )
                             .padding(.horizontal, 12)
                             .transition(.move(edge: .top).combined(with: .opacity))
@@ -135,7 +83,7 @@ struct ChatRoomView: View {
                     }
                     statusBanner
                 }
-                .padding(.top, 4)
+                .padding(.top, 52)
             }
             .animation(CozyTheme.spring, value: chatModel.nudgeBannerText)
             .overlay {
@@ -223,6 +171,11 @@ struct ChatRoomView: View {
                 chatModel.stopRealtimeSubscription()
             }
         .preferredColorScheme(.light)
+        .sheet(isPresented: $showParticipantsList) {
+            ChatRoomParticipantsSheet(room: chatModel.room)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: $showCalendar) {
             CalendarArchiveView(
                 roomId: room.id,
@@ -236,70 +189,6 @@ struct ChatRoomView: View {
                     partnerDisplayName: chatModel.partnerNickname
                 )
             )
-        }
-        .sheet(isPresented: $isShowingKeycapCustomSheet) {
-            KeycapCustomView()
-        }
-        .sheet(isPresented: $showDrawing) {
-            DrawingCanvasView(isSending: mediaModel.isSending) { data in
-                Task {
-                    if let message = await mediaModel.sendDrawing(data) {
-                        await MainActor.run {
-                            chatModel.mergeIncoming(message)
-                            mainRoomTab = .chatRoom
-                        }
-                    }
-                }
-            }
-        }
-        .fullScreenCover(isPresented: $showCamera) {
-            CameraPicker(
-                onCapture: { data in
-                    Task {
-                        if let message = await mediaModel.sendPhoto(data) {
-                            await MainActor.run {
-                                chatModel.mergeIncoming(message)
-                                mainRoomTab = .chatRoom
-                            }
-                        }
-                    }
-                },
-                onCancel: {}
-            )
-            .ignoresSafeArea()
-        }
-        .confirmationDialog("사진 보내기", isPresented: $showPhotoSourceDialog, titleVisibility: .visible) {
-            Button("사진 찍기") {
-                showCamera = true
-            }
-            Button("앨범에서 선택") {
-                showPhotosPicker = true
-            }
-            Button("취소", role: .cancel) {}
-        }
-        .photosPicker(isPresented: $showPhotosPicker, selection: $selectedPickerItem, matching: .images)
-        .onChange(of: selectedPickerItem) { _, newItem in
-            guard let newItem else { return }
-            Task {
-                defer {
-                    Task { @MainActor in selectedPickerItem = nil }
-                }
-                guard let data = try? await newItem.loadTransferable(type: Data.self),
-                      let jpeg = PhotoMediaPipeline.jpegData(from: data) else {
-                    await MainActor.run {
-                        mediaModel.flashStatusPublic("앨범 사진을 불러오지 못했어요")
-                    }
-                    return
-                }
-                await MainActor.run { isUploadingPhoto = true }
-                defer { Task { @MainActor in isUploadingPhoto = false } }
-                if let message = await mediaModel.sendPhoto(jpeg) {
-                    await MainActor.run {
-                        chatModel.mergeIncoming(message)
-                        mainRoomTab = .chatRoom
-                    }
-                }
-            }
         }
         .fullScreenCover(isPresented: lightboxPresented) {
             if let lightboxURL {
@@ -425,32 +314,88 @@ struct ChatRoomView: View {
         chatModel.presentDrawingSurpriseFromPush(message)
     }
 
-    private var inviteCodeChip: some View {
-        Button {
-            copyInviteCode()
-        } label: {
+    /// 시스템 `ToolbarItem` 대신 커스텀 바 — UIBarButtonItem 흰/글래스 크롬 없음.
+    private var chatRoomTopBar: some View {
+        HStack(alignment: .center, spacing: 4) {
             HStack(spacing: 4) {
-                Image(systemName: "number")
-                    .font(.system(size: 11, weight: .bold))
-                Text(room.inviteCode)
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.backward")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(CozyTheme.textPrimary)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("뒤로")
+
+                inviteCodeCapsule
             }
-            .foregroundStyle(CozyTheme.textPrimary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(
-                Capsule()
-                    .fill(CozyTheme.accent.opacity(0.18))
-            )
-            .overlay(
-                Capsule()
-                    .strokeBorder(CozyTheme.accent.opacity(0.35), lineWidth: 1)
-            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button {
+                showParticipantsList = true
+            } label: {
+                VStack(spacing: 2) {
+                    Text(SupabaseManager.shared.chatRoomTopBarTitle(for: chatModel.room))
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(CozyTheme.textPrimary)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity)
+                    Text(SupabaseManager.shared.memberCountLabel(for: chatModel.room))
+                        .font(.caption2)
+                        .foregroundStyle(CozyTheme.textSecondary)
+                        .lineLimit(1)
+                }
+                .multilineTextAlignment(.center)
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel("참여자 목록 보기")
+
+            chatRoomTopBarTrailingActions
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("초대 코드 복사")
+        .frame(minHeight: 44)
+        .padding(.leading, 4)
+        .padding(.trailing, 8)
+        .padding(.bottom, 8)
+        .padding(.top, 4)
+        .background(Color.clear)
+    }
+
+    private var chatRoomTopBarTrailingActions: some View {
+        HStack(spacing: 12) {
+            Button {
+                showCalendar = true
+            } label: {
+                ChatRoomTopBarToolbarIcon(systemName: "calendar")
+            }
+            .buttonStyle(.plain)
+
+            Menu {
+                Button {
+                    showSafetyMenu = true
+                } label: {
+                    Label("안전 및 데이터", systemImage: "shield")
+                }
+                Button(role: .destructive) {
+                    Task { await leaveCurrentRoom() }
+                } label: {
+                    Label("방 나가기", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+            } label: {
+                ChatRoomTopBarToolbarIcon(systemName: "ellipsis.circle")
+            }
+        }
+    }
+
+    private var inviteCodeCapsule: some View {
+        RoomInviteCodeCapsuleLabel(code: room.inviteCode)
+            .onTapGesture(perform: copyInviteCode)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel("초대 코드 \(room.inviteCode), 탭하면 복사")
     }
 
     private func copyInviteCode() {
@@ -469,14 +414,40 @@ struct ChatRoomView: View {
         }
     }
 
+    private var roomBottomChrome: some View {
+        MainRoomTabBar(
+            selectedTab: $mainRoomTab,
+            isBusy: mediaModel.isSending || chatModel.isSending
+        )
+    }
+
     @ViewBuilder
     private var mainContent: some View {
-        switch mainRoomTab {
-        case .keycaps:
-            fullScreenKeycapPanel
-        case .chatRoom:
-            messageList
+        Group {
+            switch mainRoomTab {
+            case .keycapSettings:
+                KeycapCustomView(
+                    embeddedInTabBar: true,
+                    room: chatModel.room,
+                    onRoomUpdated: { updated in
+                        chatModel.syncRoom(updated)
+                        mediaModel.syncRoom(updated)
+                        if let nick = SupabaseManager.shared.myNickname(in: updated) {
+                            chatModel.updateSenderNickname(nick)
+                            mediaModel.updateSenderNickname(nick)
+                            SupabaseManager.shared.syncSharedState(room: updated, nickname: nick)
+                        }
+                    }
+                )
+            case .keycaps:
+                fullScreenKeycapPanel
+            case .chatRoom:
+                BipbiSquishCenterStage()
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .center)))
+        .id(mainRoomTab)
     }
 
     private var fullScreenKeycapPanel: some View {
@@ -492,81 +463,68 @@ struct ChatRoomView: View {
                 ) {
                     ForEach(AppGroupStorage.keycapNudgeTypeOrder, id: \.self) { type in
                         ChatKeycapSendButton(symbolKey: type) {
-                            Task { _ = await mediaModel.sendKeycap(type) }
+                            let bipbiBonus = BipbiPagerEasterEgg.recordTap(symbolKey: type)
+                            Task { _ = await mediaModel.sendKeycap(type, bipbiBonus: bipbiBonus) }
                         }
                     }
                 }
-
-                EmergencyKeycapSendButton {
-                    Task { _ = await mediaModel.sendEmergency() }
-                }
-                .frame(maxWidth: 172)
-                .padding(.top, 2)
             }
             .padding(.horizontal, 18)
-            .padding(.vertical, 10)
+            .padding(.top, 10)
+            .padding(.bottom, RoomTabBarLayout.scrollClearance)
         }
+        .scrollIndicators(.hidden)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var chatMediaActionBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                showPhotoSourceDialog = true
-            } label: {
-                Label("사진", systemImage: "camera.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .foregroundStyle(CozyTheme.textPrimary)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.white.opacity(0.78))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .strokeBorder(CozyTheme.pink.opacity(0.45), lineWidth: 1.5)
-                            )
-                            .shadow(color: CozyTheme.pink.opacity(0.2), radius: 6, y: 2)
-                    )
-            }
-            .buttonStyle(.plain)
-            .disabled(isUploadingPhoto || mediaModel.isSending)
+}
 
-            Button {
-                showDrawing = true
-            } label: {
-                Label("손그림", systemImage: "pencil.and.scribble")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .foregroundStyle(CozyTheme.textPrimary)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.white.opacity(0.78))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .strokeBorder(CozyTheme.lavender.opacity(0.5), lineWidth: 1.5)
-                            )
-                            .shadow(color: CozyTheme.lavender.opacity(0.22), radius: 6, y: 2)
-                    )
-            }
-            .buttonStyle(.plain)
-            .disabled(mediaModel.isSending)
+/// 시스템 네비 툴바 trailing 아이콘과 동일한 크기·터치 영역 (방 코드 스타일과 분리).
+private struct ChatRoomParticipantsSheet: View {
+    let room: Room
+    @Environment(\.dismiss) private var dismiss
 
-            if isUploadingPhoto {
-                ProgressView()
-                    .tint(CozyTheme.lavender)
+    private var labels: [String] {
+        SupabaseManager.shared.participantDisplayLabels(in: room)
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(Array(labels.enumerated()), id: \.offset) { _, name in
+                        Text(name)
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(CozyTheme.textPrimary)
+                    }
+                } header: {
+                    Text("참여 중인 닉네임")
+                } footer: {
+                    Text("채팅방 설정에서 방마다 보이는 이름을 바꿀 수 있어요.")
+                }
+            }
+            .navigationTitle("참여 중")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("닫기") { dismiss() }
+                        .foregroundStyle(CozyTheme.textPrimary)
+                }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(
-            CozyTheme.sand.opacity(0.4)
-                .overlay(CozyTheme.card.opacity(0.9))
-        )
-        .overlay(alignment: .top) {
-            Divider().overlay(CozyTheme.lavender.opacity(0.25))
-        }
+    }
+}
+
+private struct ChatRoomTopBarToolbarIcon: View {
+    let systemName: String
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: 22, weight: .regular))
+            .symbolRenderingMode(.hierarchical)
+            .foregroundStyle(CozyTheme.textSecondary)
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
     }
 }
 

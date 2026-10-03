@@ -33,6 +33,7 @@ struct ChatKeycapSendButton: View {
             }
             .contentShape(hitShape)
             .highPriorityGesture(pressGesture)
+            .animation(nil, value: pressAmount)
             .frame(maxWidth: .infinity)
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel(AppGroupStorage.keycapSymbolPresentation(for: symbolKey).emoji)
@@ -42,7 +43,9 @@ struct ChatKeycapSendButton: View {
         DragGesture(minimumDistance: 0, coordinateSpace: .local)
             .onChanged { _ in
                 if pressAmount != 1 {
-                    withAnimation(KeycapPressMotion.pressDown) {
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
                         pressAmount = 1
                     }
                 }
@@ -62,8 +65,8 @@ struct ChatKeycapSendButton: View {
 }
 
 private enum KeycapPressMotion {
-    static let pressDown: Animation = .spring(response: 0.07, dampingFraction: 0.76)
-    static let releaseUp: Animation = .spring(response: 0.14, dampingFraction: 0.86)
+    /// 손을 뗄 때만 스프링 — 아래로 눌릴 때는 제스처에서 애니메이션 없이 즉시 1.
+    static let releaseUp: Animation = .spring(response: 0.11, dampingFraction: 0.68, blendDuration: 0)
 }
 
 
@@ -419,84 +422,6 @@ private struct KeycapFrustumEdge: View {
     }
 }
 
-// MARK: - 🚨 비상
-
-struct EmergencyKeycapSendButton: View {
-    var onSend: () -> Void
-
-    @State private var pressAmount: CGFloat = 0
-    @State private var phase: AppGroupStorage.EmergencyInteractionPhase = .counting(current: 0, required: AppGroupStorage.emergencyRequiredTapCount)
-
-    private let hitShape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-
-    var body: some View {
-        Color.white.opacity(0.001)
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
-            .background {
-                GeometryReader { geo in
-                    let side = min(geo.size.width, geo.size.height)
-                    ZStack {
-                        KeycapPhysicalAssembly(
-                            side: side,
-                            symbolKey: AppGroupStorage.emergencyNudgeType,
-                            pressAmount: pressAmount
-                        )
-                        if let hint = progressHint {
-                            Text(hint)
-                                .font(.system(size: side * 0.11, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .offset(y: side * 0.12)
-                                .allowsHitTesting(false)
-                        }
-                    }
-                }
-            }
-            .contentShape(hitShape)
-            .onTapGesture {
-                phase = AppGroupStorage.recordEmergencyTap()
-                KeycapPressFeedback.playPressLight()
-            }
-            .onLongPressGesture(minimumDuration: AppGroupStorage.emergencyLongPressHoldAfterArm, pressing: { pressing in
-                withAnimation(pressing ? KeycapPressMotion.pressDown : KeycapPressMotion.releaseUp) {
-                    pressAmount = pressing ? 1 : 0
-                }
-                if pressing, case .armedWaitingLongPress = phase {
-                    KeycapPressFeedback.playPress()
-                }
-            }, perform: {
-                guard AppGroupStorage.confirmEmergencyLongPress() else {
-                    phase = AppGroupStorage.emergencyInteractionPhase()
-                    return
-                }
-                IncomingHapticFeedback.playEmergencyAlarm()
-                onSend()
-                phase = AppGroupStorage.emergencyInteractionPhase()
-            })
-            .frame(maxWidth: .infinity)
-            .accessibilityLabel("비상 키캡")
-            .accessibilityHint(
-                "다섯 번 연속으로 누른 후 길게 눌러 연결된 상대에게 우선 알림을 보냅니다. "
-                    + "119 등 공공 긴급전화가 아닙니다."
-            )
-            .onAppear {
-                phase = AppGroupStorage.emergencyInteractionPhase()
-            }
-    }
-
-    private var progressHint: String? {
-        switch phase {
-        case .counting(let current, let required):
-            guard current > 0 else { return nil }
-            return "\(current)/\(required)"
-        case .armedWaitingLongPress:
-            return "길게"
-        case .cooldown:
-            return nil
-        }
-    }
-}
-
 struct ChatTopDownKeycapView: View {
     let symbolKey: String
     let capTint: Color
@@ -514,6 +439,9 @@ struct ChatTopDownKeycapView: View {
 struct ChatKeycapPressButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .animation(.spring(response: 0.28, dampingFraction: 0.5), value: configuration.isPressed)
+            .animation(
+                configuration.isPressed ? nil : KeycapPressMotion.releaseUp,
+                value: configuration.isPressed
+            )
     }
 }

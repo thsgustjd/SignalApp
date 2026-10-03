@@ -14,13 +14,18 @@ enum SupabaseManagerError: LocalizedError {
     case invalidNickname
     case emptyMediaData
     case roomDeleteNotAllowed
+    case inviteCodeAlreadyInUse
+    case duplicateNicknameInRoom
+    case authenticationRequired
+    case profileDisplayNameRequired
+    case userJoinedRoomLimitReached
 
     var errorDescription: String? {
         switch self {
         case .roomNotFound:
             return "해당 초대 코드의 방을 찾을 수 없습니다."
         case .roomAlreadyFull:
-            return "이 방은 최대 5명까지 참여할 수 있습니다. 등록한 닉네임으로 재입장해 주세요."
+            return "이 방은 최대 5명까지 참여할 수 있습니다."
         case .invalidInviteCode:
             return "12자리 초대 코드를 입력해 주세요."
         case .invalidNickname:
@@ -29,6 +34,16 @@ enum SupabaseManagerError: LocalizedError {
             return "업로드할 미디어 데이터가 비어 있습니다."
         case .roomDeleteNotAllowed:
             return "혼자만 있는 대기 방만 삭제할 수 있습니다. 멤버가 2명 이상이면 채팅방 메뉴에서 나가기를 사용해 주세요."
+        case .inviteCodeAlreadyInUse:
+            return "이미 사용 중인 초대 코드입니다. 다른 12자리 코드를 입력해 주세요."
+        case .duplicateNicknameInRoom:
+            return "이 방에 이미 같은 닉네임이 있습니다. 다른 닉네임을 사용해 주세요."
+        case .authenticationRequired:
+            return "Apple 또는 Google 로그인 후 다시 시도해 주세요."
+        case .profileDisplayNameRequired:
+            return "먼저 닉네임을 설정해 주세요."
+        case .userJoinedRoomLimitReached:
+            return "한 계정당 참여할 수 있는 채팅방은 최대 5개입니다. 나가기 후 다시 시도해 주세요."
         }
     }
 }
@@ -264,12 +279,30 @@ final class SupabaseManager {
         )
     }
 
+    /// OAuth `user_metadata.device_user_id` → 로컬 (앱 재설치 후 같은 계정 복구).
+    func restoreDeviceUserIdFromAuthMetadataIfAvailable() {
+        guard let meta = client.auth.currentSession?.user.userMetadata["device_user_id"]?.stringValue else {
+            return
+        }
+        let trimmed = meta.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let canonical = DeviceUserId.canonical(trimmed)
+        UserDefaults.standard.set(canonical, forKey: Constants.userDefaultsKey)
+        AppGroupStorage.syncUserId(canonical)
+    }
+
     var currentUserId: String {
         if let existing = UserDefaults.standard.string(forKey: Constants.userDefaultsKey) {
             let canonical = DeviceUserId.canonical(existing)
             if canonical != existing {
                 UserDefaults.standard.set(canonical, forKey: Constants.userDefaultsKey)
             }
+            AppGroupStorage.syncUserId(canonical)
+            return canonical
+        }
+        restoreDeviceUserIdFromAuthMetadataIfAvailable()
+        if let restored = UserDefaults.standard.string(forKey: Constants.userDefaultsKey) {
+            let canonical = DeviceUserId.canonical(restored)
             AppGroupStorage.syncUserId(canonical)
             return canonical
         }
@@ -356,12 +389,16 @@ final class SupabaseManager {
         return false
     }
 
-    /// 홈 카드 기본 방 이름 — 1:1은 상대 닉네임, 그룹은 다른 멤버 이름 나열.
+    /// 기본 방 이름 — 참가자 전원 닉네임을 `, `로 연결.
     func defaultRoomTitle(for room: Room) -> String {
-        let others = otherMemberDisplayNames(in: room)
-        if others.isEmpty { return "채팅방" }
-        if others.count == 1 { return others[0] }
-        return others.prefix(3).joined(separator: ", ")
+        let names = allParticipantDisplayNames(in: room)
+        if names.isEmpty { return "채팅방" }
+        return names.joined(separator: ", ")
+    }
+
+    /// 채팅 상단바 — 커스텀 제목 우선, 없으면 참가자 나열 + 5자 이상 말줄임.
+    func chatRoomTopBarTitle(for room: Room) -> String {
+        ChatRoomBarTitleFormatting.truncatedForTopBar(roomDisplayTitle(for: room))
     }
 
     func defaultRoomEmoji(for room: Room) -> String {
@@ -430,12 +467,12 @@ final class SupabaseManager {
            let name = room.user2Name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
             return name
         }
-        return savedNickname
+        return ProfileDisplayNameStore.saved
     }
 
-    /// 시뮬레이터 재설치 등으로 `currentUserId`는 바뀌었지만 닉네임으로 같은 슬롯 재입장.
     private func alignLocalUserWithRoomIfNeeded(_ room: Room) async throws -> Room {
-        try await alignMemberUserIdIfNeeded(room)
+        try await bootstrapMembershipIfNeeded(for: room)
+        return try await refreshRoom(id: room.id)
     }
 
     func syncSharedState(room: Room, nickname: String? = nil) {
@@ -688,18 +725,38 @@ final class SupabaseManager {
         AppGroupStorage.syncUserId(currentUserId)
     }
 
-    func createRoom(nickname: String) async throws -> Room {
-        let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        print("🔥 [CreateRoom] nickname(raw)=\(nickname) trimmed=\(trimmedNickname)")
+    /// `room_members` + 레거시 `rooms` 슬롯 기준, 내가 속한 서로 다른 방 개수.
+    func joinedRoomCountForCurrentUser() async -> Int {
+        var ids = Set(await fetchRoomIdsForCurrentUser())
+        if let legacy = try? await fetchLegacyRoomsByMembership() {
+            for room in legacy where isCurrentUserMember(of: room) {
+                ids.insert(room.id)
+            }
+        }
+        return ids.count
+    }
 
-        guard Self.isValidNickname(trimmedNickname) else {
-            print("❌ [CreateRoom 에러 발생]: invalidNickname")
-            throw SupabaseManagerError.invalidNickname
+    func assertCanJoinAdditionalRoom() async throws {
+        guard await joinedRoomCountForCurrentUser() < SupabaseManager.userMaxJoinedRooms else {
+            throw SupabaseManagerError.userJoinedRoomLimitReached
+        }
+    }
+
+    func createRoom() async throws -> Room {
+        let trimmedNickname = try requireProfileDisplayName()
+
+        restoreDeviceUserIdFromAuthMetadataIfAvailable()
+        guard await ensureAuthenticatedSessionForProfiles() else {
+            throw SupabaseManagerError.authenticationRequired
         }
 
-        saveNickname(trimmedNickname)
+        try await assertCanJoinAdditionalRoom()
 
-        let inviteCode = Self.makeInviteCode()
+        print("🔥 [CreateRoom] profileDisplayName=\(trimmedNickname)")
+
+        let inviteCode = try await allocateUniqueInviteCode()
+
+        saveNickname(trimmedNickname)
         let userId = currentUserId
         let payload = NewRoomPayload(
             inviteCode: inviteCode,
@@ -729,18 +786,18 @@ final class SupabaseManager {
         return hydrated
     }
 
-    func joinRoom(code rawCode: String, nickname: String) async throws -> Room {
-        let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard Self.isValidNickname(trimmedNickname) else {
-            throw SupabaseManagerError.invalidNickname
-        }
+    func joinRoom(code rawCode: String) async throws -> Room {
+        _ = try requireProfileDisplayName()
 
         let code = rawCode.trimmingCharacters(in: .whitespacesAndNewlines)
         guard InviteCodeValidator.isValidLength(code) else {
             throw SupabaseManagerError.invalidInviteCode
         }
 
-        saveNickname(trimmedNickname)
+        restoreDeviceUserIdFromAuthMetadataIfAvailable()
+        guard await ensureAuthenticatedSessionForProfiles() else {
+            throw SupabaseManagerError.authenticationRequired
+        }
 
         let roomMatches: [Room] = try await client
             .from("rooms")
@@ -753,28 +810,46 @@ final class SupabaseManager {
             throw SupabaseManagerError.roomNotFound
         }
 
-        try await bootstrapMembershipIfNeeded(for: existing)
-        var room = try await refreshRoom(id: existing.id)
-
-        if isCurrentUserMember(of: room) {
-            try await updateMyMemberDisplayName(in: room, nickname: trimmedNickname)
-            return try await finalizeMembershipMutation(roomId: room.id, nickname: trimmedNickname)
-        }
-
-        if let byName = room.members.first(where: { $0.displayName == trimmedNickname }) {
-            try await updateMemberUserId(memberId: byName.id, userId: currentUserId)
-            try await updateMyMemberDisplayName(in: room, nickname: trimmedNickname)
-            return try await finalizeMembershipMutation(roomId: room.id, nickname: trimmedNickname)
-        }
-
-        let joined = try await joinRoomMembers(existing: existing, nickname: trimmedNickname)
-        return try await finalizeMembershipMutation(roomId: joined.id, nickname: trimmedNickname)
+        let joined = try await ensureJoinedRoom(existing)
+        return try await finalizeMembershipMutation(roomId: joined.id)
     }
 
-    private func finalizeMembershipMutation(roomId: UUID, nickname: String) async throws -> Room {
+    func setMyRoomDisplayName(room: Room, displayName raw: String) async throws -> Room {
+        let trimmed = normalizedRoomDisplayName(raw)
+        guard Self.isValidNickname(trimmed) else {
+            throw SupabaseManagerError.invalidNickname
+        }
+        restoreDeviceUserIdFromAuthMetadataIfAvailable()
+        guard await ensureAuthenticatedSessionForProfiles() else {
+            throw SupabaseManagerError.authenticationRequired
+        }
+        var hydrated = try await refreshRoom(id: room.id)
+        if !isCurrentUserMember(of: hydrated) {
+            throw SupabaseManagerError.roomNotFound
+        }
+        try await updateMyMemberDisplayName(in: hydrated, nickname: trimmed)
+        return try await finalizeMembershipMutation(roomId: room.id)
+    }
+
+    func requireProfileDisplayName() throws -> String {
+        if let saved = ProfileDisplayNameStore.saved, NicknameValidator.isValid(saved) {
+            return saved
+        }
+        throw SupabaseManagerError.profileDisplayNameRequired
+    }
+
+    func defaultMemberDisplayName() -> String {
+        if let saved = ProfileDisplayNameStore.saved, NicknameValidator.isValid(saved) {
+            return saved
+        }
+        return "member"
+    }
+
+    private func finalizeMembershipMutation(roomId: UUID) async throws -> Room {
         let refreshed = try await refreshRoom(id: roomId)
-        syncSharedState(room: refreshed, nickname: nickname)
-        persistSession(room: refreshed, nickname: nickname)
+        let nick = myNickname(in: refreshed) ?? defaultMemberDisplayName()
+        syncSharedState(room: refreshed, nickname: nick)
+        persistSession(room: refreshed, nickname: nick)
         return refreshed
     }
 
@@ -803,11 +878,11 @@ final class SupabaseManager {
     }
 
     var savedNickname: String? {
-        UserDefaults.standard.string(forKey: Constants.nicknameDefaultsKey)
+        ProfileDisplayNameStore.saved
     }
 
     private func saveNickname(_ nickname: String) {
-        UserDefaults.standard.set(nickname, forKey: Constants.nicknameDefaultsKey)
+        ProfileDisplayNameStore.save(nickname)
     }
 
     private static func isValidNickname(_ nickname: String) -> Bool {
@@ -1180,20 +1255,63 @@ extension SupabaseManager {
         return message
     }
 
-    func sendKeycapNudge(roomId: UUID, senderNickname: String, symbolKey: String) async throws -> MediaMessage {
+    func sendKeycapNudge(
+        roomId: UUID,
+        senderNickname: String,
+        symbolKey: String,
+        notifyPartner: Bool = true
+    ) async throws -> MediaMessage? {
         guard AppGroupStorage.isActiveKeycapType(symbolKey) else {
             throw SupabaseManagerError.emptyMediaData
         }
         let text = AppGroupStorage.getMessage(for: symbolKey)
-        let content = text
+        let content = AppGroupStorage.storedContent(forKeycapNudge: symbolKey, messageText: text)
+        KeycapDiaryDebug.logKeycapInsert(
+            source: "SupabaseManager.sendKeycapNudge",
+            roomId: roomId,
+            senderId: currentUserId,
+            content: content,
+            symbolKeyHint: symbolKey
+        )
+        return try await insertKeycapNudgeContent(
+            roomId: roomId,
+            senderNickname: senderNickname,
+            content: content,
+            symbolKeyHint: symbolKey,
+            notifyPartner: notifyPartner
+        )
+    }
 
+    func sendKeycapNudgeContent(
+        roomId: UUID,
+        senderNickname: String,
+        content: String,
+        notifyPartner: Bool = true
+    ) async throws -> MediaMessage {
+        try await insertKeycapNudgeContent(
+            roomId: roomId,
+            senderNickname: senderNickname,
+            content: content,
+            symbolKeyHint: nil,
+            notifyPartner: notifyPartner
+        )
+    }
+
+    private func insertKeycapNudgeContent(
+        roomId: UUID,
+        senderNickname: String,
+        content: String,
+        symbolKeyHint: String? = nil,
+        notifyPartner: Bool = true
+    ) async throws -> MediaMessage {
+        let storedContent = AppGroupStorage.canonicalKeycapNudgeInsertContent(content, symbolKey: symbolKeyHint)
         let payload = MediaMessageInsert(
             roomId: roomId,
             type: "nudge",
             senderId: currentUserId,
             senderNickname: senderNickname,
             mediaUrl: nil,
-            content: content
+            content: storedContent
         )
 
         let message: MediaMessage = try await client
@@ -1204,32 +1322,18 @@ extension SupabaseManager {
             .execute()
             .value
 
-        await notifyPartnerPush(for: message)
-        return message
-    }
-
-    func sendEmergencyNudge(roomId: UUID, senderNickname: String) async throws -> MediaMessage {
-        let content = AppGroupStorage.emergencyDisplayText
-
-        let payload = MediaMessageInsert(
+        KeycapDiaryDebug.logKeycapInsert(
+            source: "SupabaseManager.insertKeycapNudgeContent(post-insert)",
             roomId: roomId,
-            type: AppGroupStorage.emergencyNudgeType,
-            senderId: currentUserId,
-            senderNickname: senderNickname,
-            mediaUrl: nil,
-            content: content
+            senderId: message.senderId,
+            content: message.content ?? storedContent,
+            messageId: message.id,
+            symbolKeyHint: symbolKeyHint
         )
 
-        let message: MediaMessage = try await client
-            .from("messages")
-            .insert(payload)
-            .select()
-            .single()
-            .execute()
-            .value
-
-        AppGroupStorage.lastEmergencySentAt = Date()
-        await notifyPartnerPush(for: message)
+        if notifyPartner {
+            await notifyPartnerPush(for: message)
+        }
         return message
     }
 
@@ -1373,10 +1477,17 @@ extension SupabaseManager {
         return formatter.string(from: startOfChatToday(calendar: calendar))
     }
 
-    private static func iso8601String(for date: Date) -> String {
+    static func iso8601String(for date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.string(from: date)
+    }
+
+    /// 캘린더 다이어리 — 로컬 `Calendar.current` 기준 해당 월 [시작, 다음 달 시작).
+    static func localCalendarMonthInterval(containing month: Date, calendar: Calendar = .current) -> (start: Date, end: Date) {
+        let start = calendar.date(from: calendar.dateComponents([.year, .month], from: month)) ?? month
+        let end = calendar.date(byAdding: .month, value: 1, to: start) ?? start
+        return (start, end)
     }
 
     private static let jsonDecoder: JSONDecoder = {
@@ -1467,24 +1578,68 @@ extension SupabaseManager {
     /// 캘린더 아카이브용 — 해당 월(로컬 타임존) 전체 메시지(넛지 포함).
     func fetchMessagesForMonth(roomId: UUID, month: Date) async throws -> [MediaMessage] {
         let calendar = Calendar.current
-        let start = calendar.date(from: calendar.dateComponents([.year, .month], from: month)) ?? month
-        guard let end = calendar.date(byAdding: .month, value: 1, to: start) else {
-            return []
-        }
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let startString = formatter.string(from: start)
-        let endString = formatter.string(from: end)
+        let interval = Self.localCalendarMonthInterval(containing: month, calendar: calendar)
+        // DB `timestamptz` ↔ 로컬 월 경계 오차를 줄이기 위해 쿼리만 ±14h 넓히고 클라이언트에서 로컬 월로 필터.
+        let queryStart = calendar.date(byAdding: .hour, value: -14, to: interval.start) ?? interval.start
+        let queryEnd = calendar.date(byAdding: .hour, value: 14, to: interval.end) ?? interval.end
+        let startString = Self.iso8601String(for: queryStart)
+        let endString = Self.iso8601String(for: queryEnd)
 
-        return try await client
-            .from("messages")
-            .select()
-            .eq("room_id", value: roomId)
-            .gte("created_at", value: startString)
-            .lt("created_at", value: endString)
-            .order("created_at", ascending: true)
-            .execute()
-            .value
+        let pageSize = 1000
+        var offset = 0
+        var fetched: [MediaMessage] = []
+
+        while true {
+            let page: [MediaMessage] = try await client
+                .from("messages")
+                .select()
+                .eq("room_id", value: roomId)
+                .gte("created_at", value: startString)
+                .lt("created_at", value: endString)
+                .order("created_at", ascending: true)
+                .range(from: offset, to: offset + pageSize - 1)
+                .execute()
+                .value
+
+            fetched.append(contentsOf: page)
+            if page.count < pageSize { break }
+            offset += pageSize
+        }
+
+        return fetched.filter { $0.createdAt >= interval.start && $0.createdAt < interval.end }
+    }
+
+    /// 로컬 하루 구간 메시지 (다이어리·오늘 보정용). 월 조회 누락 시 당일 row만 다시 당김.
+    func fetchMessagesForLocalDay(roomId: UUID, day: Date, calendar: Calendar = .current) async throws -> [MediaMessage] {
+        let start = calendar.startOfDay(for: day)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start
+        let queryStart = calendar.date(byAdding: .hour, value: -14, to: start) ?? start
+        let queryEnd = calendar.date(byAdding: .hour, value: 14, to: end) ?? end
+        let startString = Self.iso8601String(for: queryStart)
+        let endString = Self.iso8601String(for: queryEnd)
+
+        let pageSize = 1000
+        var offset = 0
+        var fetched: [MediaMessage] = []
+
+        while true {
+            let page: [MediaMessage] = try await client
+                .from("messages")
+                .select()
+                .eq("room_id", value: roomId)
+                .gte("created_at", value: startString)
+                .lt("created_at", value: endString)
+                .order("created_at", ascending: true)
+                .range(from: offset, to: offset + pageSize - 1)
+                .execute()
+                .value
+
+            fetched.append(contentsOf: page)
+            if page.count < pageSize { break }
+            offset += pageSize
+        }
+
+        return fetched.filter { $0.createdAt >= start && $0.createdAt < end }
     }
 
     func fetchChatMessages(roomId: UUID) async throws -> [MediaMessage] {
@@ -1573,12 +1728,8 @@ extension SupabaseManager {
         for attempt in 1 ... 3 {
             do {
                 if client.auth.currentSession == nil {
-                    let session = try await client.auth.signInAnonymously(
-                        data: ["device_user_id": AnyJSON.string(deviceId)]
-                    )
-                    _ = try await client.auth.refreshSession()
-                    print("✅ [APNs] signInAnonymously 완료 user=\(session.user.id.uuidString.prefix(8))… (attempt \(attempt))")
-                    try await Task.sleep(for: .milliseconds(150))
+                    print("🔴 [APNs] OAuth 세션 없음 — Apple/Google 로그인 후 재시도 (attempt \(attempt))")
+                    continue
                 }
 
                 let meta = client.auth.currentSession?.user.userMetadata["device_user_id"]?.stringValue
@@ -2105,6 +2256,24 @@ extension SupabaseManager {
 
     private static func makeInviteCode() -> String {
         String((0..<Constants.inviteCodeLength).map { _ in inviteCharacters.randomElement()! })
+    }
+
+    private func allocateUniqueInviteCode(maxAttempts: Int = 10) async throws -> String {
+        for attempt in 1 ... maxAttempts {
+            let candidate = Self.makeInviteCode()
+            let existing: [Room] = try await client
+                .from("rooms")
+                .select()
+                .eq("invite_code", value: candidate)
+                .limit(1)
+                .execute()
+                .value
+            if existing.isEmpty {
+                return candidate
+            }
+            print("ℹ️ [CreateRoom] invite_code collision attempt \(attempt), retrying…")
+        }
+        throw SupabaseManagerError.inviteCodeAlreadyInUse
     }
 }
 

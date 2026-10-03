@@ -1,0 +1,100 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "7EE4F572",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "D518A692",
+      "localizations" : [
+
+      ],
+      "productID" : "com.hyunseong.SignalApp.heart.1000",
+      "referenceName" : "하트 1,000개",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "BD0984D0",
+      "localizations" : [
+
+      ],
+      "productID" : "com.hyunseong.SignalApp.heart.5000",
+      "referenceName" : "하트 5,000개",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "6D3A25B2",
+      "localizations" : [
+
+      ],
+      "productID" : "com.hyunseong.SignalApp.heart.10000",
+      "referenceName" : "하트 10,000개",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "E79E0213",
+      "localizations" : [
+
+      ],
+      "productID" : "com.hyunseong.SignalApp.heart.50000",
+      "referenceName" : "하트 50,000개",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "ED159F3A",
+      "localizations" : [
+
+      ],
+      "productID" : "com.hyunseong.SignalApp.heart.100000",
+      "referenceName" : "하트 100,000개",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionBundleGroups" : [
+
+  ],
+  "subscriptionGroups" : [
+
+  ],
+  "subscriptionSuiteGroups" : [
+
+  ],
+  "version" : {
+    "major" : 6,
+    "minor" : 3
+  }
+}

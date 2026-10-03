@@ -19,4 +19,8 @@ enum AppLegalConfig {
     static var termsOfServiceURL: URL? {
         URL(string: "\(legalSiteBase)/terms.html")
     }
+
+    static var developerStoryURL: URL? {
+        URL(string: "\(legalSiteBase)/developer-story.html")
+    }
 }
